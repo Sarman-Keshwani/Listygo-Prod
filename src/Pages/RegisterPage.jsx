@@ -48,7 +48,7 @@ const RegisterPage = () => {
 
     try {
       // Make registration request
-      const endpoint = role === "admin" ? "/admin/register" : "/register";
+      const endpoint = role === "admin" ? "/admin/register" : "/users/register";
       await registerUser({ name, email, password, role }, endpoint);
 
       setSuccess("Registration successful! Redirecting...");
