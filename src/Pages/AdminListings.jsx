@@ -50,7 +50,6 @@ import {
   Typography,
 } from "antd";
 import dayjs from "dayjs";
-import { getNames } from "country-list";
 import countries from "../components/countries.json";
 import states from "../components/states.json";
 import cities from "../components/cities.json";
@@ -59,22 +58,12 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 const { Option } = Select;
 const { TextArea } = Input;
 const { TabPane } = Tabs;
-const countryOptions = getNames().map((country) => ({
-  label: country,
-  value: country,
-}));
 
 const AdminListings = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const categoryFilter = queryParams.get("category");
-
-  //Drop down listing
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [selectedState, setSelectedState] = useState(null);
-  const [filteredStates, setFilteredStates] = useState([]);
-  const [filteredCities, setFilteredCities] = useState([]);
 
   const [form] = Form.useForm();
 
@@ -88,7 +77,7 @@ const AdminListings = () => {
   const [selectedCategory, setSelectedCategory] = useState(
     categoryFilter || null
   );
-  const [images, setImages] = useState([""]);
+  const [images, setImages] = useState(["https://via.placeholder.com/300x200"]);
   const [activeImagePreview, setActiveImagePreview] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
@@ -98,6 +87,11 @@ const AdminListings = () => {
   const [newAttributeKey, setNewAttributeKey] = useState("");
   const [newAttributeValue, setNewAttributeValue] = useState("");
   const [attributeValues, setAttributeValues] = useState({});
+
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedState, setSelectedState] = useState(null);
+  const [filteredStates, setFilteredStates] = useState([]);
+  const [filteredCities, setFilteredCities] = useState([]);
 
   // Fetch categories and listings
   useEffect(() => {
@@ -164,7 +158,6 @@ const AdminListings = () => {
     }
   };
 
-  //Drop down Logic
   const handleCountryChange = (countryId) => {
     setSelectedCountry(countryId);
     setSelectedState(null);
@@ -220,12 +213,21 @@ const AdminListings = () => {
   };
 
   const handleFormSubmit = async (values) => {
-    // Filter out empty image URLs
+    // Validate required fields
+    if (!values.name || !values.category || !values.price) {
+      notification.error({
+        message: "Validation Error",
+        description: "Please fill in all required fields",
+      });
+      return;
+    }
+
+    // Validate images
     const validImages = images.filter((img) => img.trim() !== "");
     if (validImages.length === 0) {
       notification.error({
         message: "Validation Error",
-        description: "Please provide at least one image URL.",
+        description: "Please provide at least one image URL",
       });
       return;
     }
@@ -248,23 +250,40 @@ const AdminListings = () => {
         });
       }
 
-      //Convert to Human Readables
+      // Get country and state names
       const countryObj = countries.find((c) => c.id === values.country);
       const stateObj = states.find((s) => s.id === values.state);
-      const countryName = countryObj ? countryObj.name : values.country;
-      const stateName = stateObj ? stateObj.name : values.state;
-      const cityName = values.city; // you already stored cities as name
 
-      // Combine form values with images and amenities
+      // Create the listing data object
       const listingData = {
-        ...values,
+        name: values.name,
+        category: values.category,
+        description: values.description,
+        price: values.price,
+        rating: values.rating,
+        isFeatured: values.isFeatured || false,
         images: validImages,
         amenities: amenities,
-        hours: formattedHours,
-        // Include dynamic attributes
         attributes: attributeValues,
-        location: `${countryName}, ${stateName}, ${cityName}`,
+        location: `${countryObj?.name || ""}, ${stateObj?.name || ""}, ${
+          values.city
+        }`,
+        contactEmail: values.contactEmail,
+        contactPhone: values.contactPhone,
+        website: values.website,
+        hours: formattedHours,
+        tags: values.tags || [],
+        owner: {
+          name: values.owner?.name,
+          phone: values.owner?.phone,
+          email: values.owner?.email,
+          image: values.owner?.image,
+          isFeatured: values.owner?.isFeatured || false,
+        },
       };
+
+      // Log the data being sent
+      console.log("Sending listing data:", listingData);
 
       if (editingListingId) {
         // Update existing listing
@@ -284,16 +303,19 @@ const AdminListings = () => {
         });
       } else {
         // Create new listing
-        await axios.post(`${API_URL}/listings`, listingData, {
+        const response = await axios.post(`${API_URL}/listings`, listingData, {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         });
-        notification.success({
-          message: "Success",
-          description: "Listing created successfully!",
-        });
+
+        if (response.data) {
+          notification.success({
+            message: "Success",
+            description: "Listing created successfully!",
+          });
+        }
       }
 
       // Reset form and fetch updated listings
@@ -301,7 +323,7 @@ const AdminListings = () => {
       fetchListings();
       setShowForm(false);
     } catch (error) {
-      console.error("Error adding/updating listing:", error);
+      console.error("Error saving listing:", error);
       notification.error({
         message: "Error",
         description:
@@ -358,11 +380,11 @@ const AdminListings = () => {
     // Set owner information
     if (listing.owner) {
       form.setFieldsValue({
-        "owner.name": listing.owner.name,
-        "owner.phone": listing.owner.phone,
-        "owner.email": listing.owner.email,
-        "owner.image": listing.owner.image,
-        "owner.isFeatured": listing.owner.isFeatured,
+        name: listing.owner.name,
+        phone: listing.owner.phone,
+        email: listing.owner.email,
+        image: listing.owner.image,
+        isFeatured: listing.owner.isFeatured,
       });
     }
 
@@ -683,18 +705,21 @@ const AdminListings = () => {
           title={editingListingId ? "Edit Listing" : "Add New Listing"}
           placement="right"
           size="large"
-          visible={showForm}
+          open={showForm}
           onClose={() => setShowForm(false)}
           extra={<Button onClick={() => setShowForm(false)}>Cancel</Button>}
         >
           <Form
             form={form}
             layout="vertical"
-            onFinish={handleFormSubmit}
-            initialValues={{
-              rating: 4.5,
-              isFeatured: false,
+            onFinish={(values) => {
+              console.log("✅ onFinish fired, values:", values);
+              handleFormSubmit(values);
             }}
+            onFinishFailed={(errorInfo) => {
+              console.error("❌ Form validation failed:", errorInfo);
+            }}
+            initialValues={{ rating: 4.5, isFeatured: false }}
           >
             <Tabs defaultActiveKey="basic">
               <TabPane tab="Basic Info" key="basic">
@@ -734,25 +759,6 @@ const AdminListings = () => {
                     ))}
                   </Select>
                 </Form.Item>
-
-                {/* <Form.Item
-                  name="location"
-                  label="Location"
-                  rules={[
-                    { required: true, message: "Please select a country" },
-                  ]}
-                >
-                  <Select
-                    showSearch
-                    placeholder="Select a country"
-                    optionFilterProp="label"
-                    filterOption={(input, option) =>
-                      option.label.toLowerCase().includes(input.toLowerCase())
-                    }
-                    options={countryOptions}
-                    prefix={<FiMapPin />}
-                  />
-                </Form.Item> */}
 
                 <Form.Item
                   name="country"
@@ -1037,22 +1043,22 @@ const AdminListings = () => {
 
               <TabPane tab="Contact & Owner" key="contact">
                 <Card title="Owner Information" className="mb-4">
-                  <Form.Item name="owner.name" label="Owner/Host Name">
+                  <Form.Item name={["owner", "name"]} label="Owner/Host Name">
                     <Input
                       prefix={<FiUser />}
                       placeholder="Name of owner/host"
                     />
                   </Form.Item>
 
-                  <Form.Item name="owner.phone" label="Contact Phone">
+                  <Form.Item name={["owner", "phone"]} label="Contact Phone">
                     <Input prefix={<FiPhone />} placeholder="Phone number" />
                   </Form.Item>
 
-                  <Form.Item name="owner.email" label="Contact Email">
+                  <Form.Item name={["owner", "email"]} label="Contact Email">
                     <Input prefix={<FiMail />} placeholder="Email address" />
                   </Form.Item>
 
-                  <Form.Item name="owner.image" label="Owner Image URL">
+                  <Form.Item name={["owner", "image"]} label="Owner Image URL">
                     <Input
                       prefix={<FiImage />}
                       placeholder="URL to owner/host image"
@@ -1060,8 +1066,8 @@ const AdminListings = () => {
                   </Form.Item>
 
                   <Form.Item
-                    name="owner.isFeatured"
-                    label="Featured Host/Superhost"
+                    name={["owner", "isFeatured"]}
+                    label="Featured Host"
                     valuePropName="checked"
                   >
                     <Switch />
