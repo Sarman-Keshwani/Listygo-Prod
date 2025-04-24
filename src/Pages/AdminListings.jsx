@@ -50,9 +50,6 @@ import {
   Typography,
 } from "antd";
 import dayjs from "dayjs";
-import countries from "../components/countries.json";
-import states from "../components/states.json";
-import cities from "../components/cities.json";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 const { Option } = Select;
@@ -77,7 +74,7 @@ const AdminListings = () => {
   const [selectedCategory, setSelectedCategory] = useState(
     categoryFilter || null
   );
-  const [images, setImages] = useState(["https://via.placeholder.com/300x200"]);
+  const [images, setImages] = useState([""]);
   const [activeImagePreview, setActiveImagePreview] = useState(0);
   const [showForm, setShowForm] = useState(false);
   const [viewMode, setViewMode] = useState("grid"); // 'grid' or 'list'
@@ -88,10 +85,8 @@ const AdminListings = () => {
   const [newAttributeValue, setNewAttributeValue] = useState("");
   const [attributeValues, setAttributeValues] = useState({});
 
-  const [selectedCountry, setSelectedCountry] = useState(null);
-  const [selectedState, setSelectedState] = useState(null);
-  const [filteredStates, setFilteredStates] = useState([]);
-  const [filteredCities, setFilteredCities] = useState([]);
+  const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 5MB
 
   // Fetch categories and listings
   useEffect(() => {
@@ -132,6 +127,49 @@ const AdminListings = () => {
     }
   };
 
+  const handleFileUpload = async (file) => {
+    // Validate file type
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      notification.error({
+        message: "Invalid file type",
+        description: "Only JPG, JPEG and PNG files are allowed",
+      });
+      return;
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      notification.error({
+        message: "File too large",
+        description: "Image size should be less than 5MB",
+      });
+      return;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("images", file);
+
+      const token = localStorage.getItem("token");
+      const response = await axios.post(`${API_URL}/upload`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (response.data.url) {
+        setImages([...images, response.data.url]);
+      }
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      notification.error({
+        message: "Upload Failed",
+        description: "Failed to upload image. Please try again.",
+      });
+    }
+  };
+
   const fetchListings = async () => {
     setLoading(true);
     try {
@@ -156,26 +194,6 @@ const AdminListings = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleCountryChange = (countryId) => {
-    setSelectedCountry(countryId);
-    setSelectedState(null);
-    form.setFieldsValue({ state: undefined, city: undefined });
-
-    const statesInCountry = states.filter(
-      (state) => state.country_id === countryId
-    );
-    setFilteredStates(statesInCountry);
-    setFilteredCities([]);
-  };
-
-  const handleStateChange = (stateId) => {
-    setSelectedState(stateId);
-    form.setFieldsValue({ city: undefined });
-
-    const citiesInState = cities.filter((city) => city.state_id === stateId);
-    setFilteredCities(citiesInState);
   };
 
   const handleCategoryChange = (categoryId) => {
@@ -213,21 +231,12 @@ const AdminListings = () => {
   };
 
   const handleFormSubmit = async (values) => {
-    // Validate required fields
-    if (!values.name || !values.category || !values.price) {
-      notification.error({
-        message: "Validation Error",
-        description: "Please fill in all required fields",
-      });
-      return;
-    }
-
-    // Validate images
+    // Filter out empty image URLs
     const validImages = images.filter((img) => img.trim() !== "");
     if (validImages.length === 0) {
       notification.error({
         message: "Validation Error",
-        description: "Please provide at least one image URL",
+        description: "Please provide at least one image URL.",
       });
       return;
     }
@@ -235,90 +244,50 @@ const AdminListings = () => {
     setFormLoading(true);
     try {
       const token = localStorage.getItem("token");
+      const validImages = images.filter((img) => img.trim() !== "");
 
-      // Format hours data
-      const formattedHours = {};
-      if (values.hours) {
-        Object.keys(values.hours).forEach((day) => {
-          const dayHours = values.hours[day];
-          if (dayHours?.open && dayHours?.close) {
-            formattedHours[day] = {
-              open: dayHours.open.format("HH:mm"),
-              close: dayHours.close.format("HH:mm"),
-            };
-          }
-        });
-      }
+      const formData = new FormData();
 
-      // Get country and state names
-      const countryObj = countries.find((c) => c.id === values.country);
-      const stateObj = states.find((s) => s.id === values.state);
+      // Append all form values
+      Object.keys(values).forEach((key) => {
+        if (values[key] !== undefined) {
+          formData.append(key, values[key]);
+        }
+      });
 
-      // Create the listing data object
-      const listingData = {
-        name: values.name,
-        category: values.category,
-        description: values.description,
-        price: values.price,
-        rating: values.rating,
-        isFeatured: values.isFeatured || false,
-        images: validImages,
-        amenities: amenities,
-        attributes: attributeValues,
-        location: `${countryObj?.name || ""}, ${stateObj?.name || ""}, ${
-          values.city
-        }`,
-        contactEmail: values.contactEmail,
-        contactPhone: values.contactPhone,
-        website: values.website,
-        hours: formattedHours,
-        tags: values.tags || [],
-        owner: {
-          name: values.owner?.name,
-          phone: values.owner?.phone,
-          email: values.owner?.email,
-          image: values.owner?.image,
-          isFeatured: values.owner?.isFeatured || false,
+      // Append images
+      formData.append("images", JSON.stringify(validImages));
+      formData.append("replaceImages", "true");
+
+      // Append other data
+      formData.append("amenities", JSON.stringify(amenities));
+      formData.append("hours", JSON.stringify(formattedHours));
+      formData.append("attributes", JSON.stringify(attributeValues));
+
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
         },
       };
 
-      // Log the data being sent
-      console.log("Sending listing data:", listingData);
-
       if (editingListingId) {
-        // Update existing listing
         await axios.put(
           `${API_URL}/listings/${editingListingId}`,
-          listingData,
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
+          formData,
+          config
         );
-        notification.success({
-          message: "Success",
-          description: "Listing updated successfully!",
-        });
       } else {
-        // Create new listing
-        const response = await axios.post(`${API_URL}/listings`, listingData, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.data) {
-          notification.success({
-            message: "Success",
-            description: "Listing created successfully!",
-          });
-        }
+        await axios.post(`${API_URL}/listings`, formData, config);
       }
 
-      // Reset form and fetch updated listings
+      notification.success({
+        message: "Success",
+        description: `Listing ${
+          editingListingId ? "updated" : "created"
+        } successfully!`,
+      });
+
       resetForm();
       fetchListings();
       setShowForm(false);
@@ -380,11 +349,11 @@ const AdminListings = () => {
     // Set owner information
     if (listing.owner) {
       form.setFieldsValue({
-        name: listing.owner.name,
-        phone: listing.owner.phone,
-        email: listing.owner.email,
-        image: listing.owner.image,
-        isFeatured: listing.owner.isFeatured,
+        "owner.name": listing.owner.name,
+        "owner.phone": listing.owner.phone,
+        "owner.email": listing.owner.email,
+        "owner.image": listing.owner.image,
+        "owner.isFeatured": listing.owner.isFeatured,
       });
     }
 
@@ -705,21 +674,18 @@ const AdminListings = () => {
           title={editingListingId ? "Edit Listing" : "Add New Listing"}
           placement="right"
           size="large"
-          open={showForm}
+          visible={showForm}
           onClose={() => setShowForm(false)}
           extra={<Button onClick={() => setShowForm(false)}>Cancel</Button>}
         >
           <Form
             form={form}
             layout="vertical"
-            onFinish={(values) => {
-              console.log("✅ onFinish fired, values:", values);
-              handleFormSubmit(values);
+            onFinish={handleFormSubmit}
+            initialValues={{
+              rating: 4.5,
+              isFeatured: false,
             }}
-            onFinishFailed={(errorInfo) => {
-              console.error("❌ Form validation failed:", errorInfo);
-            }}
-            initialValues={{ rating: 4.5, isFeatured: false }}
           >
             <Tabs defaultActiveKey="basic">
               <TabPane tab="Basic Info" key="basic">
@@ -761,62 +727,13 @@ const AdminListings = () => {
                 </Form.Item>
 
                 <Form.Item
-                  name="country"
-                  label="Country"
-                  rules={[{ required: true }]}
+                  name="location"
+                  label="Location"
+                  rules={[
+                    { required: true, message: "Please enter the location" },
+                  ]}
                 >
-                  <Select
-                    showSearch
-                    placeholder="Select a country"
-                    onChange={handleCountryChange}
-                    optionFilterProp="children"
-                  >
-                    {countries.map((country) => (
-                      <Option key={country.id} value={country.id}>
-                        {country.name}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-
-                <Form.Item
-                  name="state"
-                  label="State"
-                  rules={[{ required: true }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder="Select a state"
-                    onChange={handleStateChange}
-                    value={selectedState}
-                    optionFilterProp="children"
-                    disabled={!filteredStates.length}
-                  >
-                    {filteredStates.map((state) => (
-                      <Option key={state.id} value={state.id}>
-                        {state.name}
-                      </Option>
-                    ))}
-                  </Select>
-                </Form.Item>
-
-                <Form.Item
-                  name="city"
-                  label="City"
-                  rules={[{ required: true }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder="Select a city"
-                    disabled={!filteredCities.length}
-                    optionFilterProp="children"
-                  >
-                    {filteredCities.map((city) => (
-                      <Option key={city.id} value={city.name}>
-                        {city.name}
-                      </Option>
-                    ))}
-                  </Select>
+                  <Input prefix={<FiMapPin />} placeholder="City, Country" />
                 </Form.Item>
 
                 <Form.Item
@@ -873,6 +790,7 @@ const AdminListings = () => {
               </TabPane>
 
               <TabPane tab="Images" key="images">
+                {/* Existing image URL inputs */}
                 {images.map((url, index) => (
                   <div key={index} className="flex items-center gap-2 mb-2">
                     <Input
@@ -890,15 +808,35 @@ const AdminListings = () => {
                   </div>
                 ))}
 
-                <Button
-                  type="dashed"
-                  onClick={handleAddImage}
-                  className="w-full mb-4"
-                  icon={<FiPlus />}
-                >
-                  Add Image
-                </Button>
+                <div className="flex gap-2 w-full mb-4">
+                  <Button
+                    type="dashed"
+                    onClick={handleAddImage}
+                    className="flex-1"
+                    icon={<FiPlus />}
+                  >
+                    Add Image URL
+                  </Button>
 
+                  <Upload
+                    accept=".jpg,.jpeg,.png"
+                    showUploadList={false}
+                    beforeUpload={(file) => {
+                      handleFileUpload(file);
+                      return false; // Prevent default upload behavior
+                    }}
+                  >
+                    <Button
+                      type="primary"
+                      icon={<FiPlus />}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      Upload Image
+                    </Button>
+                  </Upload>
+                </div>
+
+                {/* Rest of the image preview code */}
                 <div className="mt-4">
                   <p className="font-medium mb-2">Image Preview</p>
                   <div className="h-40 bg-gray-100 rounded-md overflow-hidden">
@@ -1043,22 +981,22 @@ const AdminListings = () => {
 
               <TabPane tab="Contact & Owner" key="contact">
                 <Card title="Owner Information" className="mb-4">
-                  <Form.Item name={["owner", "name"]} label="Owner/Host Name">
+                  <Form.Item name="owner.name" label="Owner/Host Name">
                     <Input
                       prefix={<FiUser />}
                       placeholder="Name of owner/host"
                     />
                   </Form.Item>
 
-                  <Form.Item name={["owner", "phone"]} label="Contact Phone">
+                  <Form.Item name="owner.phone" label="Contact Phone">
                     <Input prefix={<FiPhone />} placeholder="Phone number" />
                   </Form.Item>
 
-                  <Form.Item name={["owner", "email"]} label="Contact Email">
+                  <Form.Item name="owner.email" label="Contact Email">
                     <Input prefix={<FiMail />} placeholder="Email address" />
                   </Form.Item>
 
-                  <Form.Item name={["owner", "image"]} label="Owner Image URL">
+                  <Form.Item name="owner.image" label="Owner Image URL">
                     <Input
                       prefix={<FiImage />}
                       placeholder="URL to owner/host image"
@@ -1066,8 +1004,8 @@ const AdminListings = () => {
                   </Form.Item>
 
                   <Form.Item
-                    name={["owner", "isFeatured"]}
-                    label="Featured Host"
+                    name="owner.isFeatured"
+                    label="Featured Host/Superhost"
                     valuePropName="checked"
                   >
                     <Switch />

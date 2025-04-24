@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import { Typography, Card, Rate, Badge, Tooltip, Button } from "antd";
 import { useNavigate } from "react-router-dom";
@@ -180,20 +181,12 @@ const Destinations = () => {
             </Paragraph>
 
             <div className="flex gap-2 justify-center">
-              <Badge
-                count={destinations.filter((d) => d.trending).length}
-                color="blue"
-                offset={[-5, 5]}
-              >
-                <Button
-                  type="primary"
-                  ghost
-                  className="border-blue-500 text-blue-600 hover:text-blue-700"
-                >
+              {/* <Badge count={destinations.filter(d => d.trending).length} color="blue" offset={[-5, 5]}>
+                <Button type="primary" ghost className="border-blue-500 text-blue-600 hover:text-blue-700">
                   Trending Destinations
                 </Button>
               </Badge>
-              <Button type="default">Popular Experiences</Button>
+              <Button type="default">Popular Experiences</Button> */}
             </div>
           </motion.div>
         </motion.div>
@@ -211,7 +204,7 @@ const Destinations = () => {
               key={index}
               variants={item}
               className="cursor-pointer group"
-              onClick={() => navigate("/listings")}
+              onClick={() => navigate("/hotels")}
               onMouseEnter={() => setHoveredCard(index)}
               onMouseLeave={() => setHoveredCard(null)}
             >

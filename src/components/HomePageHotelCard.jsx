@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+// eslint-disable-next-line no-unused-vars
 import { motion } from "framer-motion";
 import {
   Card,
@@ -49,9 +50,9 @@ const HomePageHotelCard = () => {
   }, []);
 
   // Handle navigation to hotel details page
-  const handleHotelClick = (hotelId) => {
-    navigate(`/hotels/${hotelId}`);
-  };
+  // const handleHotelClick = (hotelId) => {
+  //   navigate(`/hotels/${hotelId}`);
+  // };
 
   const container = {
     hidden: { opacity: 0 },
@@ -192,6 +193,7 @@ const HomePageHotelCard = () => {
             type="primary"
             size="large"
             icon={<ArrowRightOutlined />}
+            onClick={() => navigate("/listings")}
             onClick={() => navigate("/hotels")}
             className="bg-blue-600 hover:bg-blue-700"
           >
