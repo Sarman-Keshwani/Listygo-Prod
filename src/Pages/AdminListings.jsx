@@ -86,7 +86,7 @@ const AdminListings = () => {
   const [attributeValues, setAttributeValues] = useState({});
 
   const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
-  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 5MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
   // Fetch categories and listings
   useEffect(() => {
@@ -128,6 +128,8 @@ const AdminListings = () => {
   };
 
   const handleFileUpload = async (file) => {
+    if (!file) return;
+
     // Validate file type
     if (!ALLOWED_FILE_TYPES.includes(file.type)) {
       notification.error({
@@ -141,15 +143,15 @@ const AdminListings = () => {
     if (file.size > MAX_FILE_SIZE) {
       notification.error({
         message: "File too large",
-        description: "Image size should be less than 5MB",
+        description: "Image size should be less than 10MB",
       });
       return;
     }
 
-    try {
-      const formData = new FormData();
-      formData.append("images", file);
+    const formData = new FormData();
+    formData.append("images", file);
 
+    try {
       const token = localStorage.getItem("token");
       const response = await axios.post(`${API_URL}/upload`, formData, {
         headers: {
@@ -159,7 +161,7 @@ const AdminListings = () => {
       });
 
       if (response.data.url) {
-        setImages([...images, response.data.url]);
+        setImages((prev) => [...prev, response.data.url]);
       }
     } catch (error) {
       console.error("Error uploading image:", error);
@@ -231,12 +233,10 @@ const AdminListings = () => {
   };
 
   const handleFormSubmit = async (values) => {
-    // Filter out empty image URLs
-    const validImages = images.filter((img) => img.trim() !== "");
-    if (validImages.length === 0) {
+    if (!values.name || !values.category || !values.price) {
       notification.error({
         message: "Validation Error",
-        description: "Please provide at least one image URL.",
+        description: "Please fill in all required fields",
       });
       return;
     }
@@ -244,23 +244,35 @@ const AdminListings = () => {
     setFormLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const validImages = images.filter((img) => img.trim() !== "");
-
       const formData = new FormData();
 
-      // Append all form values
-      Object.keys(values).forEach((key) => {
-        if (values[key] !== undefined) {
-          formData.append(key, values[key]);
-        }
-      });
+      // Add basic fields
+      formData.append("name", values.name);
+      formData.append("price", values.price);
+      formData.append("category", values.category);
 
-      // Append images
-      formData.append("images", JSON.stringify(validImages));
+      if (values.description) {
+        formData.append("description", values.description);
+      }
+
+      // Handle images
+      const validImages = images.filter((img) => img.trim() !== "");
+      if (validImages.length > 0) {
+        // If images are URLs, send them as JSON string
+        formData.append("images", JSON.stringify(validImages));
+      }
       formData.append("replaceImages", "true");
 
-      // Append other data
-      formData.append("amenities", JSON.stringify(amenities));
+      // Handle other data
+      if (amenities.length > 0) {
+        formData.append("amenities", JSON.stringify(amenities));
+      }
+
+      if (Object.keys(attributeValues).length > 0) {
+        formData.append("attributes", JSON.stringify(attributeValues));
+      }
+
+      // Format and append hours if present
       const hours = form.getFieldValue("hours") || {};
       const formattedHours = Object.keys(hours).reduce((acc, day) => {
         const dayHours = hours[day];
@@ -272,8 +284,9 @@ const AdminListings = () => {
         }
         return acc;
       }, {});
-      formData.append("hours", JSON.stringify(formattedHours));
-      formData.append("attributes", JSON.stringify(attributeValues));
+      if (Object.keys(formattedHours).length > 0) {
+        formData.append("hours", JSON.stringify(formattedHours));
+      }
 
       const config = {
         headers: {
@@ -282,15 +295,23 @@ const AdminListings = () => {
         },
       };
 
+      // Log FormData contents for debugging
+      for (let pair of formData.entries()) {
+        console.log(pair[0], pair[1]);
+      }
+
+      let response;
       if (editingListingId) {
-        await axios.put(
+        response = await axios.put(
           `${API_URL}/listings/${editingListingId}`,
           formData,
           config
         );
       } else {
-        await axios.post(`${API_URL}/listings`, formData, config);
+        response = await axios.post(`${API_URL}/listings`, formData, config);
       }
+
+      console.log("API Response:", response.data);
 
       notification.success({
         message: "Success",
@@ -820,14 +841,14 @@ const AdminListings = () => {
                 ))}
 
                 <div className="flex gap-2 w-full mb-4">
-                  <Button
+                  {/* <Button
                     type="dashed"
                     onClick={handleAddImage}
                     className="flex-1"
                     icon={<FiPlus />}
                   >
                     Add Image URL
-                  </Button>
+                  </Button> */}
 
                   <Upload
                     accept=".jpg,.jpeg,.png"
