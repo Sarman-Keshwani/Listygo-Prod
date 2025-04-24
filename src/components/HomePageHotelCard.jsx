@@ -140,7 +140,6 @@ const HomePageHotelCard = () => {
                             </div>
                           </div>
                         }
-                        onClick={() => handleHotelClick(hotel._id)}
                       >
                         <Title level={5} className="mb-1 line-clamp-1">
                           {hotel.name}
@@ -167,7 +166,6 @@ const HomePageHotelCard = () => {
                           className="bg-blue-600 hover:bg-blue-700 mt-auto"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleHotelClick(hotel._id);
                           }}
                         >
                           View Details
@@ -194,7 +192,6 @@ const HomePageHotelCard = () => {
             size="large"
             icon={<ArrowRightOutlined />}
             onClick={() => navigate("/listings")}
-            onClick={() => navigate("/hotels")}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Explore All Properties
