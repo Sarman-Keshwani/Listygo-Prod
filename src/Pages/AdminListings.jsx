@@ -261,6 +261,17 @@ const AdminListings = () => {
 
       // Append other data
       formData.append("amenities", JSON.stringify(amenities));
+      const hours = form.getFieldValue("hours") || {};
+      const formattedHours = Object.keys(hours).reduce((acc, day) => {
+        const dayHours = hours[day];
+        if (dayHours?.open && dayHours?.close) {
+          acc[day] = {
+            open: dayHours.open.format("HH:mm"),
+            close: dayHours.close.format("HH:mm"),
+          };
+        }
+        return acc;
+      }, {});
       formData.append("hours", JSON.stringify(formattedHours));
       formData.append("attributes", JSON.stringify(attributeValues));
 
