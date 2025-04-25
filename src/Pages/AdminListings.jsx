@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import countries from "../components/countries.json";
+import states from "../components/states.json";
+import cities from "../components/cities.json";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FiHome,
@@ -84,6 +87,10 @@ const AdminListings = () => {
   const [newAttributeKey, setNewAttributeKey] = useState("");
   const [newAttributeValue, setNewAttributeValue] = useState("");
   const [attributeValues, setAttributeValues] = useState({});
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedState, setSelectedState] = useState(null);
+  const [filteredStates, setFilteredStates] = useState([]);
+  const [filteredCities, setFilteredCities] = useState([]);
 
   const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -172,6 +179,27 @@ const AdminListings = () => {
     }
   };
 
+  // Handle country and state selection
+  const handleCountryChange = (countryId) => {
+    setSelectedCountry(countryId);
+    setSelectedState(null);
+    form.setFieldsValue({ state: undefined, city: undefined });
+
+    const statesInCountry = states.filter(
+      (state) => state.country_id === countryId
+    );
+    setFilteredStates(statesInCountry);
+    setFilteredCities([]);
+  };
+
+  const handleStateChange = (stateId) => {
+    setSelectedState(stateId);
+    form.setFieldsValue({ city: undefined });
+
+    const citiesInState = cities.filter((city) => city.state_id === stateId);
+    setFilteredCities(citiesInState);
+  };
+
   const fetchListings = async () => {
     setLoading(true);
     try {
@@ -241,12 +269,20 @@ const AdminListings = () => {
       return;
     }
 
+    const countryObj = countries.find((c) => c.id === values.country);
+    const stateObj = states.find((s) => s.id === values.state);
+
     setFormLoading(true);
     try {
       const token = localStorage.getItem("token");
       const formData = new FormData();
 
       // Add basic fields
+
+      const locationString = `${countryObj?.name || ""}, ${
+        stateObj?.name || ""
+      }, ${values.city}`;
+      formData.append("location", locationString);
       formData.append("name", values.name);
       formData.append("price", values.price);
       formData.append("category", values.category);
@@ -271,6 +307,10 @@ const AdminListings = () => {
       if (Object.keys(attributeValues).length > 0) {
         formData.append("attributes", JSON.stringify(attributeValues));
       }
+
+      // Get country and state names
+      const countryObj = countries.find((c) => c.id === values.country);
+      const stateObj = states.find((s) => s.id === values.state);
 
       // Format and append hours if present
       const hours = form.getFieldValue("hours") || {};
@@ -758,7 +798,7 @@ const AdminListings = () => {
                   </Select>
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                   name="location"
                   label="Location"
                   rules={[
@@ -766,6 +806,68 @@ const AdminListings = () => {
                   ]}
                 >
                   <Input prefix={<FiMapPin />} placeholder="City, Country" />
+                </Form.Item> */}
+
+                {/* Country selector */}
+                <Form.Item
+                  name="country"
+                  label="Country"
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select a country"
+                    onChange={handleCountryChange}
+                    optionFilterProp="children"
+                  >
+                    {countries.map((country) => (
+                      <Option key={country.id} value={country.id}>
+                        {country.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                {/* State selector */}
+                <Form.Item
+                  name="state"
+                  label="State"
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select a state"
+                    onChange={handleStateChange}
+                    value={selectedState}
+                    optionFilterProp="children"
+                    disabled={!filteredStates.length}
+                  >
+                    {filteredStates.map((state) => (
+                      <Option key={state.id} value={state.id}>
+                        {state.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                {/* City selector */}
+                <Form.Item
+                  name="city"
+                  label="City"
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select a city"
+                    disabled={!filteredCities.length}
+                    optionFilterProp="children"
+                  >
+                    {filteredCities.map((city) => (
+                      <Option key={city.id} value={city.name}>
+                        {city.name}
+                      </Option>
+                    ))}
+                  </Select>
                 </Form.Item>
 
                 <Form.Item
