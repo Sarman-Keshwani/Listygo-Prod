@@ -9,37 +9,54 @@ const slides = [
     category: "Accommodations",
     title: "Find Your Stay",
     subtitle: "Top-rated hotels, motels & homestays near you",
-    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945",
+    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
     icon: <Hotel size={16} />,
-    route: "/listings/accommodations" // Example route
+    route: "/listings?category=accommodations" // Using query params for flexibility
   },
   {
     category: "Real Estate",
     title: "Explore Real Estate",
     subtitle: "Buy, sell or rent homes and offices",
-    image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be",
+    image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
     icon: <Home size={16} />,
-    route: "/listings/real-estate" // Example route
+    route: "/listings?category=real-estate"
   },
   {
     category: "Shopping",
     title: "Shop the Best Deals",
     subtitle: "Local marketplace for everything you need",
-    image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f",
+    image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
     icon: <ShoppingBag size={16} />,
-    route: "/listings/shopping" // Example route
+    route: "/listings?category=shopping"
   },
 ];
 
+// Define popular categories for suggestions
+const POPULAR_CATEGORIES = [
+  "Hotels",
+  "Restaurants",
+  "Rentals",
+  "Real Estate",
+  "Shopping",
+  "Entertainment",
+  "Fitness",
+  "Healthcare",
+  "Education"
+];
+
 export default function HeaderCarouselSection() {
-  const navigate = useNavigate(); // Initialize useNavigate for routing
+  const navigate = useNavigate();
   const [current, setCurrent] = React.useState(0);
-  const [location, setLocation] = React.useState(""); // Geolocation state
-  const [searchLocation, setSearchLocation] = React.useState(""); // State for location input
+  const [location, setLocation] = React.useState(""); 
+  const [searchLocation, setSearchLocation] = React.useState("");
   const [searchInput, setSearchInput] = React.useState("");
   const [suggestions, setSuggestions] = React.useState([]);
-  const [selectedCategory, setSelectedCategory] = React.useState("all"); // State for dropdown
-  const [isSearching, setIsSearching] = React.useState(false); // State for loading overlay
+  const [selectedCategory, setSelectedCategory] = React.useState("all");
+  const [isSearching, setIsSearching] = React.useState(false);
+  const [recentSearches, setRecentSearches] = React.useState(() => {
+    const saved = localStorage.getItem('recentSearches');
+    return saved ? JSON.parse(saved) : [];
+  });
 
   const length = slides.length;
 
@@ -85,7 +102,7 @@ export default function HeaderCarouselSection() {
     setSearchInput(val);
     if (val.length > 1) {
       setSuggestions(
-        ["Hotels", "Rentals", "Gyms", "Shopping Malls", "Events", "Studios"].filter((item) =>
+        POPULAR_CATEGORIES.filter((item) =>
           item.toLowerCase().includes(val.toLowerCase())
         )
       );
@@ -292,7 +309,7 @@ export default function HeaderCarouselSection() {
              animate={{ opacity: 1, y: 0 }}
              transition={{ duration: 0.5, delay: 0.5 }}
            >
-             <Link to={`/listings?category=${slides[current].category.toLowerCase()}`}
+             <Link to={`/listings`}
 
                className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 text-sm md:text-base"
              >

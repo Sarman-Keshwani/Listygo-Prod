@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import countries from "../components/countries.json";
+import states from "../components/states.json";
+import cities from "../components/cities.json";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FiHome,
@@ -84,6 +87,12 @@ const AdminListings = () => {
   const [newAttributeKey, setNewAttributeKey] = useState("");
   const [newAttributeValue, setNewAttributeValue] = useState("");
   const [attributeValues, setAttributeValues] = useState({});
+  const [selectedCountry, setSelectedCountry] = useState(null);
+  const [selectedState, setSelectedState] = useState(null);
+  const [filteredStates, setFilteredStates] = useState([]);
+  const [filteredCities, setFilteredCities] = useState([]);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewUrls, setPreviewUrls] = useState([]); // Added for multiple image uploads
 
   const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -127,49 +136,86 @@ const AdminListings = () => {
     }
   };
 
-  const handleFileUpload = async (file) => {
-    if (!file) return;
-
-    // Validate file type
-    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+  // 1) Image upload & preview helper
+  const handleFileUpload = (file) => {
+    if (!ALLOWED_FILE_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE) {
       notification.error({
-        message: "Invalid file type",
-        description: "Only JPG, JPEG and PNG files are allowed",
+        message: "Invalid file",
+        description: "Only JPG/PNG under 10MB allowed",
       });
-      return;
+      return false;
     }
 
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
-      notification.error({
-        message: "File too large",
-        description: "Image size should be less than 10MB",
-      });
-      return;
-    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPreviewUrl(e.target.result);
+      setImages((prev) => [...prev.filter(Boolean), e.target.result]);
+      setActiveImagePreview(images.length);
+    };
+    reader.readAsDataURL(file);
+    return false; // prevent Upload auto
+  };
 
-    const formData = new FormData();
-    formData.append("images", file);
+  // Add new function for multiple file uploads
+  const handleMultipleFileUpload = ({ fileList }) => {
+    const newUrls = [];
+    const promises = [];
 
-    try {
-      const token = localStorage.getItem("token");
-      const response = await axios.post(`${API_URL}/upload`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "multipart/form-data",
-        },
-      });
+    fileList.forEach((file) => {
+      if (!file.originFileObj) return;
 
-      if (response.data.url) {
-        setImages((prev) => [...prev, response.data.url]);
+      if (!ALLOWED_FILE_TYPES.includes(file.originFileObj.type) || file.originFileObj.size > MAX_FILE_SIZE) {
+        notification.error({
+          message: "Invalid file",
+          description: `${file.name}: Only JPG/PNG under 10MB allowed`,
+        });
+        return;
       }
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      notification.error({
-        message: "Upload Failed",
-        description: "Failed to upload image. Please try again.",
+
+      const promise = new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          newUrls.push(e.target.result);
+          resolve();
+        };
+        reader.readAsDataURL(file.originFileObj);
       });
-    }
+
+      promises.push(promise);
+    });
+
+    Promise.all(promises).then(() => {
+      setPreviewUrls(newUrls);
+      setImages((prev) => [...prev.filter(Boolean), ...newUrls]);
+      if (newUrls.length > 0) {
+        setActiveImagePreview(images.filter(Boolean).length);
+      }
+      notification.success({
+        message: "Success",
+        description: `${newUrls.length} images uploaded successfully`,
+      });
+    });
+  };
+
+  // Handle country and state selection
+  const handleCountryChange = (countryId) => {
+    setSelectedCountry(countryId);
+    setSelectedState(null);
+    form.setFieldsValue({ state: undefined, city: undefined });
+
+    const statesInCountry = states.filter(
+      (state) => state.country_id === countryId
+    );
+    setFilteredStates(statesInCountry);
+    setFilteredCities([]);
+  };
+
+  const handleStateChange = (stateId) => {
+    setSelectedState(stateId);
+    form.setFieldsValue({ city: undefined });
+
+    const citiesInState = cities.filter((city) => city.state_id === stateId);
+    setFilteredCities(citiesInState);
   };
 
   const fetchListings = async () => {
@@ -232,104 +278,120 @@ const AdminListings = () => {
     setImages(newImages);
   };
 
+  // 3) Simplified submit handler ↴
   const handleFormSubmit = async (values) => {
-    if (!values.name || !values.category || !values.price) {
-      notification.error({
-        message: "Validation Error",
-        description: "Please fill in all required fields",
-      });
-      return;
-    }
-
     setFormLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const formData = new FormData();
+      const fd = new FormData();
 
-      // Add basic fields
-      formData.append("name", values.name);
-      formData.append("price", values.price);
-      formData.append("category", values.category);
+      // Add location field by combining city, area, state, country
+      if (values.city) {
+        const selectedStateObj = filteredStates.find(
+          (state) => state.id === selectedState
+        );
+        const selectedCountryObj = countries.find(
+          (country) => country.id === selectedCountry
+        );
 
-      if (values.description) {
-        formData.append("description", values.description);
+        const location = [
+          values.city,
+          values.area, // Add area to location
+          selectedStateObj?.name,
+          selectedCountryObj?.name,
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        fd.append("location", location);
       }
 
-      // Handle images
-      const validImages = images.filter((img) => img.trim() !== "");
-      if (validImages.length > 0) {
-        // If images are URLs, send them as JSON string
-        formData.append("images", JSON.stringify(validImages));
-      }
-      formData.append("replaceImages", "true");
-
-      // Handle other data
-      if (amenities.length > 0) {
-        formData.append("amenities", JSON.stringify(amenities));
-      }
-
-      if (Object.keys(attributeValues).length > 0) {
-        formData.append("attributes", JSON.stringify(attributeValues));
-      }
-
-      // Format and append hours if present
-      const hours = form.getFieldValue("hours") || {};
-      const formattedHours = Object.keys(hours).reduce((acc, day) => {
-        const dayHours = hours[day];
-        if (dayHours?.open && dayHours?.close) {
-          acc[day] = {
-            open: dayHours.open.format("HH:mm"),
-            close: dayHours.close.format("HH:mm"),
-          };
+      // basic fields
+      Object.entries(values).forEach(([k, v]) => {
+        if (v != null && k !== "hours" && !k.startsWith("owner.")) {
+          fd.append(k, v);
         }
-        return acc;
-      }, {});
-      if (Object.keys(formattedHours).length > 0) {
-        formData.append("hours", JSON.stringify(formattedHours));
+      });
+
+      // Add amenities
+      if (amenities.length > 0) {
+        fd.append("amenities", JSON.stringify(amenities));
       }
 
-      const config = {
+      // Add attributes
+      if (attributeKeys.length > 0) {
+        fd.append("attributes", JSON.stringify(attributeValues));
+      }
+
+      // Add owner information if available
+      if (values.owner) {
+        Object.entries(values.owner).forEach(([k, v]) => {
+          if (v != null) {
+            fd.append(`owner[${k}]`, v);
+          }
+        });
+      }
+
+      // Add hours information if available
+      if (values.hours) {
+        const formattedHours = {};
+        Object.entries(values.hours).forEach(([day, times]) => {
+          if (times?.open && times?.close) {
+            formattedHours[day] = {
+              open: times.open.format("HH:mm"),
+              close: times.close.format("HH:mm"),
+            };
+          }
+        });
+        fd.append("hours", JSON.stringify(formattedHours));
+      }
+
+      // images: data URLs → blobs, URLs → JSON
+      const dataUrls = images.filter((i) => i && i.startsWith("data:"));
+      const urls = images.filter((i) => i && !i.startsWith("data:") && i.trim());
+      if (urls.length) fd.append("imageUrls", JSON.stringify(urls));
+      for (let i = 0; i < dataUrls.length; i++) {
+        const blob = await fetch(dataUrls[i]).then((r) => r.blob());
+        fd.append("images", blob, `img${i}.jpg`);
+      }
+      fd.append("replaceImages", editingListingId ? "false" : "true");
+
+      const method = editingListingId ? "put" : "post";
+      const url = editingListingId
+        ? `${API_URL}/listings/${editingListingId}`
+        : `${API_URL}/listings`;
+
+      // For debugging
+      console.log("Form submission data:", {
+        method,
+        url,
+        editingListingId,
+        amenities,
+        attributeValues,
+        images: images.length,
+      });
+
+      await axios({
+        method,
+        url,
+        data: fd,
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
         },
-      };
-
-      // Log FormData contents for debugging
-      for (let pair of formData.entries()) {
-        console.log(pair[0], pair[1]);
-      }
-
-      let response;
-      if (editingListingId) {
-        response = await axios.put(
-          `${API_URL}/listings/${editingListingId}`,
-          formData,
-          config
-        );
-      } else {
-        response = await axios.post(`${API_URL}/listings`, formData, config);
-      }
-
-      console.log("API Response:", response.data);
-
-      notification.success({
-        message: "Success",
-        description: `Listing ${
-          editingListingId ? "updated" : "created"
-        } successfully!`,
       });
 
+      notification.success({
+        message: `Listing ${editingListingId ? "updated" : "created"}!`,
+      });
       resetForm();
       fetchListings();
       setShowForm(false);
-    } catch (error) {
-      console.error("Error saving listing:", error);
+    } catch (err) {
+      console.error("Error creating/updating listing:", err);
       notification.error({
         message: "Error",
-        description:
-          error.response?.data?.message ||
-          "Failed to save listing. Please try again.",
+        description: err.response?.data?.message || err.message,
       });
     } finally {
       setFormLoading(false);
@@ -343,7 +405,6 @@ const AdminListings = () => {
     form.setFieldsValue({
       name: listing.name,
       category: listing.category._id,
-      location: listing.location,
       price: listing.price,
       rating: listing.rating,
       description: listing.description,
@@ -353,6 +414,49 @@ const AdminListings = () => {
       website: listing.website,
       tags: listing.tags || [],
     });
+
+    // Parse location for country, state, city, area
+    if (listing.location) {
+      const locationParts = listing.location.split(",").map((part) =>
+        part.trim()
+      );
+      const city = locationParts[0];
+      const area = locationParts.length > 3 ? locationParts[1] : "";
+
+      // Find the country by name
+      const country = countries.find(
+        (c) => c.name === locationParts[locationParts.length - 1]
+      );
+      if (country) {
+        setSelectedCountry(country.id);
+        form.setFieldsValue({ country: country.id });
+
+        // Get states in this country
+        const statesInCountry = states.filter(
+          (s) => s.country_id === country.id
+        );
+        setFilteredStates(statesInCountry);
+
+        // Find state by name
+        const state = statesInCountry.find(
+          (s) => s.name === locationParts[locationParts.length - 2]
+        );
+        if (state) {
+          setSelectedState(state.id);
+          form.setFieldsValue({ state: state.id });
+
+          // Get cities in this state
+          const citiesInState = cities.filter((c) => c.state_id === state.id);
+          setFilteredCities(citiesInState);
+
+          // Set city and area
+          form.setFieldsValue({
+            city: city,
+            area: area,
+          });
+        }
+      }
+    }
 
     // Set images
     setImages(
@@ -445,6 +549,11 @@ const AdminListings = () => {
     setNewAttributeKey("");
     setNewAttributeValue("");
     setNewAmenity("");
+    setSelectedCountry(null);
+    setSelectedState(null);
+    setFilteredStates([]);
+    setFilteredCities([]);
+    setPreviewUrl(null);
   };
 
   // Get human-readable category name
@@ -517,7 +626,7 @@ const AdminListings = () => {
     </Card>
   );
 
-  // Render list view item
+  // Fix the renderListItem function to include the complete rating component
   const renderListItem = (listing) => (
     <Card key={listing._id} className="mb-4">
       <div className="flex flex-col md:flex-row">
@@ -529,8 +638,7 @@ const AdminListings = () => {
               className="w-full h-full object-cover rounded"
               onError={(e) => {
                 e.target.onerror = null;
-                e.target.src =
-                  "https://via.placeholder.com/300x200?text=No+Image";
+                e.target.src = "https://via.placeholder.com/300x200?text=No+Image";
               }}
             />
           ) : (
@@ -583,12 +691,7 @@ const AdminListings = () => {
               ₹{listing.price}
             </div>
             <div className="flex items-center">
-              <Rate
-                disabled
-                defaultValue={listing.rating}
-                allowHalf
-                className="text-sm"
-              />
+              <Rate disabled defaultValue={listing.rating} allowHalf className="text-sm" />
               <span className="ml-1 text-gray-500">({listing.rating})</span>
             </div>
           </div>
@@ -597,6 +700,7 @@ const AdminListings = () => {
     </Card>
   );
 
+  // Fix the return statement structure
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Admin Header */}
@@ -666,8 +770,7 @@ const AdminListings = () => {
                 allowClear
                 showSearch
                 filterOption={(input, option) =>
-                  option.children.toLowerCase().indexOf(input.toLowerCase()) >=
-                  0
+                  option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
                 }
               >
                 {categories.map((category) => (
@@ -694,8 +797,7 @@ const AdminListings = () => {
                 />
               </div>
               <div className="text-right text-gray-500 text-sm">
-                {listings.length} listing{listings.length !== 1 ? "s" : ""}{" "}
-                found
+                {listings.length} listing{listings.length !== 1 ? "s" : ""} found
               </div>
             </div>
           </div>
@@ -737,9 +839,7 @@ const AdminListings = () => {
                 <Form.Item
                   name="category"
                   label="Category"
-                  rules={[
-                    { required: true, message: "Please select a category" },
-                  ]}
+                  rules={[{ required: true, message: "Please select a category" }]}
                 >
                   <Select
                     placeholder="Select a category"
@@ -758,22 +858,92 @@ const AdminListings = () => {
                   </Select>
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                   name="location"
                   label="Location"
-                  rules={[
-                    { required: true, message: "Please enter the location" },
-                  ]}
+                  rules={[{ required: true, message: "Please enter the location" }]}
                 >
                   <Input prefix={<FiMapPin />} placeholder="City, Country" />
+                </Form.Item> */}
+
+                {/* Country selector */}
+                <Form.Item
+                  name="country"
+                  label="Country"
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select a country"
+                    onChange={handleCountryChange}
+                    optionFilterProp="children"
+                  >
+                    {countries.map((country) => (
+                      <Option key={country.id} value={country.id}>
+                        {country.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                {/* State selector */}
+                <Form.Item
+                  name="state"
+                  label="State"
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select a state"
+                    onChange={handleStateChange}
+                    value={selectedState}
+                    optionFilterProp="children"
+                    disabled={!filteredStates.length}
+                  >
+                    {filteredStates.map((state) => (
+                      <Option key={state.id} value={state.id}>
+                        {state.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                {/* City selector */}
+                <Form.Item
+                  name="city"
+                  label="City"
+                  rules={[{ required: true }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Select a city"
+                    disabled={!filteredCities.length}
+                    optionFilterProp="children"
+                  >
+                    {filteredCities.map((city) => (
+                      <Option key={city.id} value={city.name}>
+                        {city.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                {/* Area input field */}
+                <Form.Item
+                  name="area"
+                  label="Area"
+                  tooltip="Specify the area, neighborhood, or locality within the city"
+                >
+                  <Input 
+                    placeholder="Enter area or neighborhood (optional)"
+                    prefix={<FiMapPin />}
+                  />
                 </Form.Item>
 
                 <Form.Item
                   name="price"
                   label="Price"
-                  rules={[
-                    { required: true, message: "Please enter the price" },
-                  ]}
+                  rules={[{ required: true, message: "Please enter the price" }]}
                 >
                   <InputNumber
                     prefix={<FiDollarSign />}
@@ -786,9 +956,7 @@ const AdminListings = () => {
                 <Form.Item
                   name="rating"
                   label="Rating"
-                  rules={[
-                    { required: true, message: "Please enter the rating" },
-                  ]}
+                  rules={[{ required: true, message: "Please enter the rating" }]}
                 >
                   <Rate allowHalf />
                 </Form.Item>
@@ -821,111 +989,71 @@ const AdminListings = () => {
                 </Form.Item>
               </TabPane>
 
+              {/* 2) In your <Form> ↴ Add this TabPane for Images: */}
               <TabPane tab="Images" key="images">
-                {/* Existing image URL inputs */}
-                {images.map((url, index) => (
-                  <div key={index} className="flex items-center gap-2 mb-2">
-                    <Input
-                      value={url}
-                      onChange={(e) => handleImageChange(index, e.target.value)}
-                      placeholder={`Image URL ${index + 1}`}
-                    />
-                    <Button
-                      type="text"
-                      danger
-                      icon={<FiTrash2 />}
-                      onClick={() => handleRemoveImage(index)}
-                      disabled={images.length <= 1}
-                    />
-                  </div>
-                ))}
-
-                <div className="flex gap-2 w-full mb-4">
-                  {/* <Button
-                    type="dashed"
-                    onClick={handleAddImage}
-                    className="flex-1"
-                    icon={<FiPlus />}
-                  >
-                    Add Image URL
-                  </Button> */}
-
+                <Form.Item
+                  label="Images"
+                  required
+                  rules={[
+                    {
+                      validator: () => {
+                        if (images.filter((i) => i?.trim()).length === 0) {
+                          return Promise.reject(
+                            "At least one image is required"
+                          );
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                >
                   <Upload
                     accept=".jpg,.jpeg,.png"
                     showUploadList={false}
-                    beforeUpload={(file) => {
-                      handleFileUpload(file);
-                      return false; // Prevent default upload behavior
-                    }}
+                    beforeUpload={handleFileUpload}
                   >
-                    <Button
-                      type="primary"
-                      icon={<FiPlus />}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      Upload Image
-                    </Button>
+                    <Button icon={<FiPlus />}>Upload</Button>
                   </Upload>
-                </div>
+                  <Button
+                    type="dashed"
+                    onClick={() => setImages([...images, ""])}
+                    className="mt-2"
+                  >
+                    Add URL Field
+                  </Button>
 
-                {/* Rest of the image preview code */}
-                <div className="mt-4">
-                  <p className="font-medium mb-2">Image Preview</p>
-                  <div className="h-40 bg-gray-100 rounded-md overflow-hidden">
-                    {images[activeImagePreview] ? (
+                  {/* URL inputs */}
+                  {images.map((url, i) => (
+                    <Input
+                      key={i}
+                      className="mt-2"
+                      value={url}
+                      placeholder={`Image URL #${i + 1}`}
+                      onChange={(e) => {
+                        const next = [...images];
+                        next[i] = e.target.value;
+                        setImages(next);
+                      }}
+                    />
+                  ))}
+
+                  {/* Preview */}
+                  <div className="mt-4 h-48 flex items-center justify-center bg-gray-100">
+                    {previewUrl || images[activeImagePreview]?.trim() ? (
                       <img
-                        src={images[activeImagePreview]}
+                        src={previewUrl || images[activeImagePreview]}
                         alt="Preview"
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src =
-                            "https://via.placeholder.com/400x200?text=Invalid+Image+URL";
-                        }}
+                        className="max-h-full"
+                        onError={(e) =>
+                          (e.currentTarget.src =
+                            "https://via.placeholder.com/400x200?text=Invalid")
+                        }
                       />
                     ) : (
-                      <div className="h-full flex items-center justify-center text-gray-400">
-                        <div className="text-center">
-                          <FiImage size={32} className="mx-auto mb-2" />
-                          <p>No image preview</p>
-                        </div>
-                      </div>
+                      <span className="text-gray-500">No preview</span>
                     )}
                   </div>
-
-                  {images.length > 1 && (
-                    <div className="flex gap-2 mt-2 overflow-x-auto">
-                      {images.map((url, index) => (
-                        <div
-                          key={index}
-                          className={`w-16 h-16 rounded cursor-pointer border-2 ${
-                            activeImagePreview === index
-                              ? "border-blue-500"
-                              : "border-gray-200"
-                          }`}
-                          onClick={() => setActiveImagePreview(index)}
-                        >
-                          {url ? (
-                            <img
-                              src={url}
-                              alt={`Thumbnail ${index + 1}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src =
-                                  "https://via.placeholder.com/64?text=Error";
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                              <FiImage className="text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                </Form.Item>
               </TabPane>
 
               <TabPane tab="Amenities" key="amenities">

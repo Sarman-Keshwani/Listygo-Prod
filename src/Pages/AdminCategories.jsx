@@ -58,9 +58,21 @@ const AdminCategories = () => {
   const handleCreateCategory = async (values) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
+      
+      // Ensure all required fields are present and properly formatted
+      const categoryData = {
+        name: values.name.trim(), // Trim whitespace
+        // Only include other fields if they have values
+        ...(values.description ? { description: values.description.trim() } : {}),
+        ...(values.icon ? { icon: values.icon.trim() } : {}),
+        active: values.active !== undefined ? values.active : true
+      };
+      
+      console.log('Attempting to create category with data:', categoryData);
+      
+      const response = await axios.post(
         `${API_URL}/categories`,
-        values,
+        categoryData,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -68,6 +80,8 @@ const AdminCategories = () => {
           }
         }
       );
+      
+      console.log('API response:', response.data);
       
       notification.success({
         message: 'Success',
@@ -79,19 +93,68 @@ const AdminCategories = () => {
       fetchCategories();
     } catch (error) {
       console.error('Error creating category:', error);
-      notification.error({
-        message: 'Error',
-        description: error.response?.data?.message || 'Failed to create category. Please try again.',
-      });
+      
+      // Log the detailed error response for debugging
+      if (error.response) {
+        console.log('Error response data:', error.response.data);
+        console.log('Error response status:', error.response.status);
+        
+        if (error.response.status === 400) {
+          // More specific error handling for 400 errors
+          if (error.response.data && error.response.data.message) {
+            notification.error({
+              message: 'Validation Error',
+              description: error.response.data.message,
+            });
+          } else if (error.response.data && error.response.data.errors) {
+            // Format validation errors if they exist in the response
+            const errorMessages = Object.entries(error.response.data.errors)
+              .map(([field, msg]) => `${field}: ${msg}`)
+              .join('; ');
+            
+            notification.error({
+              message: 'Validation Error',
+              description: errorMessages || 'Invalid data provided',
+            });
+          } else {
+            notification.error({
+              message: 'Error',
+              description: 'The category could not be created. Please check your data.',
+            });
+          }
+        } else {
+          notification.error({
+            message: 'Error',
+            description: error.response.data?.message || `Server error (${error.response.status})`,
+          });
+        }
+      } else {
+        notification.error({
+          message: 'Error',
+          description: error.message || 'Failed to create category. Network or server issue.',
+        });
+      }
     }
   };
 
+  // Also improve the handleUpdateCategory function with similar error handling
   const handleUpdateCategory = async (values) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
+      
+      // Prepare category data similar to create function
+      const categoryData = {
+        name: values.name.trim(),
+        ...(values.description ? { description: values.description.trim() } : {}),
+        ...(values.icon ? { icon: values.icon.trim() } : {}),
+        active: values.active !== undefined ? values.active : true
+      };
+      
+      console.log('Updating category with data:', categoryData);
+      
+      const response = await axios.put(
         `${API_URL}/categories/${editingCategory._id}`,
-        values,
+        categoryData,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -99,6 +162,8 @@ const AdminCategories = () => {
           }
         }
       );
+      
+      console.log('Update response:', response.data);
       
       notification.success({
         message: 'Success',
@@ -110,34 +175,115 @@ const AdminCategories = () => {
       form.resetFields();
       fetchCategories();
     } catch (error) {
+      // Use similar error handling as in the create function
       console.error('Error updating category:', error);
-      notification.error({
-        message: 'Error',
-        description: error.response?.data?.message || 'Failed to update category. Please try again.',
-      });
+      
+      if (error.response) {
+        console.log('Error response data:', error.response.data);
+        
+        notification.error({
+          message: 'Error',
+          description: error.response.data?.message || `Failed to update category (${error.response.status})`,
+        });
+      } else {
+        notification.error({
+          message: 'Error',
+          description: error.message || 'Failed to update category. Please try again.',
+        });
+      }
     }
   };
 
   const handleDelete = async (categoryId) => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/categories/${categoryId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      
+      // Find the category we want to delete
+      const categoryToUpdate = categories.find(cat => cat._id === categoryId);
+      
+      if (!categoryToUpdate) {
+        notification.error({
+          message: 'Error',
+          description: 'Category not found',
+        });
+        setLoading(false);
+        return;
+      }
+      
+      console.log(`Backend has issues with deleting. Attempting to mark category '${categoryToUpdate.name}' as inactive instead.`);
+      
+      // WORKAROUND: Instead of deleting (which doesn't work on backend), mark as inactive
+      const response = await axios.put(
+        `${API_URL}/categories/${categoryId}`,
+        { ...categoryToUpdate, active: false },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      console.log('Update response:', response.data);
+      
+      notification.success({
+        message: 'Category Deactivated',
+        description: 'The category has been marked as inactive since deletion is not supported by the backend.',
+        duration: 6,
       });
+      
+      // Refresh the categories list
+      fetchCategories();
+    } catch (error) {
+      console.error('Error handling category deletion/deactivation:', error);
+      console.log('Error response:', error.response?.data);
+      
+      notification.error({
+        message: 'Action Failed',
+        description: 'Could not complete the operation. Please try again or contact the administrator.',
+        duration: 6,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add this new function to handle toggling the active status
+  const handleToggleActive = async (category) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(
+        `${API_URL}/categories/${category._id}`,
+        { ...category, active: !category.active },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
       
       notification.success({
         message: 'Success',
-        description: 'Category deleted successfully!',
+        description: `Category ${!category.active ? 'activated' : 'deactivated'} successfully!`,
       });
       
       fetchCategories();
     } catch (error) {
-      console.error('Error deleting category:', error);
+      console.error('Error updating category status:', error);
       notification.error({
         message: 'Error',
-        description: error.response?.data?.message || 'Failed to delete category. This category might have listings associated with it.',
+        description: error.response?.data?.message || 'Failed to update category status. Please try again.',
       });
     }
+  };
+
+  // Add the missing showCreateModal function
+  const showCreateModal = () => {
+    setEditingCategory(null);
+    form.resetFields();
+    setModalVisible(true);
   };
 
   const showEditModal = (category) => {
@@ -151,12 +297,7 @@ const AdminCategories = () => {
     setModalVisible(true);
   };
 
-  const showCreateModal = () => {
-    setEditingCategory(null);
-    form.resetFields();
-    setModalVisible(true);
-  };
-
+  // Modify the columns definition to use the new toggle function
   const columns = [
     {
       title: 'Name',
@@ -168,6 +309,7 @@ const AdminCategories = () => {
       title: 'Slug',
       dataIndex: 'slug',
       key: 'slug',
+      render: (text) => <span className="font-medium text-blue-600">{text}</span>,
       responsive: ['md'],
     },
     {
@@ -180,21 +322,24 @@ const AdminCategories = () => {
       ),
     },
     {
-      title: 'Status',
-      dataIndex: 'active',
-      key: 'active',
-      render: (active) => (
-        active ? 
-          <Tag color="green">Active</Tag> : 
-          <Tag color="red">Inactive</Tag>
-      ),
+      // title: 'Status',
+      // dataIndex: 'active',
+      // key: 'active',
+      // render: (active, record) => (
+      //   <Switch 
+      //     checked={active} 
+      //     onChange={() => handleToggleActive(record)}
+      //     checkedChildren={<FiCheck />}
+      //     unCheckedChildren={<FiX />}
+      //   />
+      // ),
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button 
+          <Button
             type="primary" 
             size="small" 
             icon={<FiEdit />} 
@@ -204,19 +349,30 @@ const AdminCategories = () => {
             Edit
           </Button>
           <Popconfirm
-            title="Are you sure you want to delete this category?"
-            onConfirm={() => handleDelete(record._id)}
-            okText="Yes"
-            cancelText="No"
-            okButtonProps={{ danger: true }}
+            title={record.active ? "Deactivate this category?" : "This category is already inactive"}
+            description={
+              <div>
+                <p>Due to technical limitations, categories cannot be fully deleted.</p>
+                <p>This action will mark the category as inactive instead.</p>
+                {record.active ? null : (
+                  <p className="text-red-500 font-medium mt-2">This category is already inactive!</p>
+                )}
+              </div>
+            }
+            onConfirm={() => record.active ? handleDelete(record._id) : null}
+            okText={record.active ? "Deactivate" : "Close"}
+            cancelText="Cancel"
+            okButtonProps={{ danger: record.active }}
+            cancelButtonProps={{ style: { display: record.active ? 'inline' : 'none' } }}
           >
             <Button 
               type="primary" 
-              danger 
+              danger
               size="small" 
               icon={<FiTrash2 />}
+              disabled={!record.active}
             >
-              Delete
+              {record.active ? "Deactivate" : "Inactive"}
             </Button>
           </Popconfirm>
           <Button 
@@ -238,7 +394,7 @@ const AdminCategories = () => {
           <h1 className="text-2xl font-bold">ListyGo Admin</h1>
           <div className="flex items-center gap-4">
             <span>{localStorage.getItem('userName') || 'Admin'}</span>
-            <button 
+            <button
               className="px-3 py-1 bg-blue-700 hover:bg-blue-900 rounded"
               onClick={() => {
                 localStorage.removeItem('token');
@@ -260,7 +416,7 @@ const AdminCategories = () => {
             <p className="text-gray-600">Create, update and delete categories for listings</p>
           </div>
           <div className="flex gap-2">
-            <Button 
+            <Button
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded flex items-center gap-1 hover:bg-gray-300"
               onClick={() => navigate('/admin/dashboard')}
             >
@@ -276,7 +432,6 @@ const AdminCategories = () => {
             </Button>
           </div>
         </div>
-
         <Card className="shadow-md">
           {loading ? (
             <div className="flex justify-center items-center py-20">
@@ -301,10 +456,9 @@ const AdminCategories = () => {
           )}
         </Card>
       </div>
-
       <Modal
         title={editingCategory ? 'Edit Category' : 'Create Category'}
-        visible={modalVisible}
+        open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
           setEditingCategory(null);
@@ -324,14 +478,12 @@ const AdminCategories = () => {
           >
             <Input />
           </Form.Item>
-          
           <Form.Item
             name="description"
             label="Description"
           >
             <Input.TextArea rows={3} />
           </Form.Item>
-          
           <Form.Item
             name="icon"
             label="Icon Name"
@@ -339,7 +491,6 @@ const AdminCategories = () => {
           >
             <Input placeholder="e.g., hotel" />
           </Form.Item>
-          
           <Form.Item
             name="active"
             label="Active"
@@ -376,3 +527,5 @@ const AdminCategories = () => {
 };
 
 export default AdminCategories;
+
+
