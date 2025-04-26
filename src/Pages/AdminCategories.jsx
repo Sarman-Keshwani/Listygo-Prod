@@ -199,51 +199,68 @@ const AdminCategories = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Find the category we want to delete
-      const categoryToUpdate = categories.find(cat => cat._id === categoryId);
+      console.log(`Attempting to delete category with ID: ${categoryId}`);
       
-      if (!categoryToUpdate) {
-        notification.error({
-          message: 'Error',
-          description: 'Category not found',
-        });
-        setLoading(false);
-        return;
-      }
-      
-      console.log(`Backend has issues with deleting. Attempting to mark category '${categoryToUpdate.name}' as inactive instead.`);
-      
-      // WORKAROUND: Instead of deleting (which doesn't work on backend), mark as inactive
-      const response = await axios.put(
-        `${API_URL}/categories/${categoryId}`,
-        { ...categoryToUpdate, active: false },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
+      // Try using the deleteOne method instead of remove
+      const response = await axios.delete(`${API_URL}/categories/${categoryId}`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          // Add a custom header to indicate which method to use on the server
+          'X-Delete-Method': 'deleteOne' 
+        },
+        // Add data to the request to support alternative deletion methods
+        data: {
+          categoryId: categoryId,
+          deleteMethod: 'deleteOne'
         }
-      );
+      });
       
-      console.log('Update response:', response.data);
+      console.log('Delete response:', response.data);
       
       notification.success({
-        message: 'Category Deactivated',
-        description: 'The category has been marked as inactive since deletion is not supported by the backend.',
-        duration: 6,
+        message: 'Success',
+        description: 'Category deleted successfully!',
       });
       
       // Refresh the categories list
       fetchCategories();
     } catch (error) {
-      console.error('Error handling category deletion/deactivation:', error);
+      console.error('Error deleting category:', error);
       console.log('Error response:', error.response?.data);
       
-      notification.error({
-        message: 'Action Failed',
-        description: 'Could not complete the operation. Please try again or contact the administrator.',
-        duration: 6,
-      });
+      if (error.response?.data?.error === 'category.remove is not a function') {
+        // The backend is using an outdated MongoDB method
+        notification.error({
+          message: 'Backend Error',
+          description: 'The server needs to be updated to use modern MongoDB methods like deleteOne() instead of remove().',
+          duration: 8,
+        });
+      } else if (error.response) {
+        if (error.response.status === 500) {
+          notification.error({
+            message: 'Cannot Delete Category',
+            description: 'This category has associated listings. Please remove all listings in this category before deleting it.',
+            duration: 6,
+          });
+        } else if (error.response.status === 404) {
+          notification.error({
+            message: 'Category Not Found',
+            description: 'The category you are trying to delete was not found.',
+          });
+          // Refresh to show current data
+          fetchCategories();
+        } else {
+          notification.error({
+            message: 'Delete Failed',
+            description: error.response.data?.message || error.response.data?.error || `Error: ${error.response.status}`,
+          });
+        }
+      } else {
+        notification.error({
+          message: 'Network Error',
+          description: 'Failed to connect to the server. Please check your internet connection.',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -349,30 +366,26 @@ const AdminCategories = () => {
             Edit
           </Button>
           <Popconfirm
-            title={record.active ? "Deactivate this category?" : "This category is already inactive"}
+            title="Delete this category permanently?"
             description={
               <div>
-                <p>Due to technical limitations, categories cannot be fully deleted.</p>
-                <p>This action will mark the category as inactive instead.</p>
-                {record.active ? null : (
-                  <p className="text-red-500 font-medium mt-2">This category is already inactive!</p>
-                )}
+                <p>This action will completely remove the category from the database.</p>
+                <p className="text-red-500 font-medium">This action cannot be undone!</p>
+                <p className="text-red-500">Note: Categories with associated listings cannot be deleted.</p>
               </div>
             }
-            onConfirm={() => record.active ? handleDelete(record._id) : null}
-            okText={record.active ? "Deactivate" : "Close"}
+            onConfirm={() => handleDelete(record._id)}
+            okText="Delete Permanently"
             cancelText="Cancel"
-            okButtonProps={{ danger: record.active }}
-            cancelButtonProps={{ style: { display: record.active ? 'inline' : 'none' } }}
+            okButtonProps={{ danger: true }}
           >
             <Button 
               type="primary" 
               danger
               size="small" 
               icon={<FiTrash2 />}
-              disabled={!record.active}
             >
-              {record.active ? "Deactivate" : "Inactive"}
+              Delete
             </Button>
           </Popconfirm>
           <Button 
