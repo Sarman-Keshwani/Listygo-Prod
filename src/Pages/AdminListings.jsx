@@ -3,6 +3,9 @@ import axios from "axios";
 import countries from "../components/countries.json";
 import states from "../components/states.json";
 import cities from "../components/cities.json";
+import countries from "../components/countries.json";
+import states from "../components/states.json";
+import cities from "../components/cities.json";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   FiHome,
@@ -136,6 +139,9 @@ const AdminListings = () => {
     }
   };
 
+  // 1) Image upload & preview helper
+  const handleFileUpload = (file) => {
+    if (!ALLOWED_FILE_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE) {
   // 1) Image upload & preview helper
   const handleFileUpload = (file) => {
     if (!ALLOWED_FILE_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE) {
@@ -279,10 +285,12 @@ const AdminListings = () => {
   };
 
   // 3) Simplified submit handler ↴
+  // 3) Simplified submit handler ↴
   const handleFormSubmit = async (values) => {
     setFormLoading(true);
     try {
       const token = localStorage.getItem("token");
+      const fd = new FormData();
       const fd = new FormData();
 
       // Add location field by combining city, area, state, country
@@ -382,6 +390,7 @@ const AdminListings = () => {
       });
 
       notification.success({
+        message: `Listing ${editingListingId ? "updated" : "created"}!`,
         message: `Listing ${editingListingId ? "updated" : "created"}!`,
       });
       resetForm();
@@ -859,6 +868,7 @@ const AdminListings = () => {
                 </Form.Item>
 
                 {/* <Form.Item
+                {/* <Form.Item
                   name="location"
                   label="Location"
                   rules={[{ required: true, message: "Please enter the location" }]}
@@ -990,7 +1000,24 @@ const AdminListings = () => {
               </TabPane>
 
               {/* 2) In your <Form> ↴ Add this TabPane for Images: */}
+              {/* 2) In your <Form> ↴ Add this TabPane for Images: */}
               <TabPane tab="Images" key="images">
+                <Form.Item
+                  label="Images"
+                  required
+                  rules={[
+                    {
+                      validator: () => {
+                        if (images.filter((i) => i?.trim()).length === 0) {
+                          return Promise.reject(
+                            "At least one image is required"
+                          );
+                        }
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                >
                 <Form.Item
                   label="Images"
                   required
@@ -1011,7 +1038,50 @@ const AdminListings = () => {
                     accept=".jpg,.jpeg,.png"
                     showUploadList={false}
                     beforeUpload={handleFileUpload}
+                    beforeUpload={handleFileUpload}
                   >
+                    <Button icon={<FiPlus />}>Upload</Button>
+                  </Upload>
+                  <Button
+                    type="dashed"
+                    onClick={() => setImages([...images, ""])}
+                    className="mt-2"
+                  >
+                    Add URL Field
+                  </Button>
+
+                  {/* URL inputs */}
+                  {images.map((url, i) => (
+                    <Input
+                      key={i}
+                      className="mt-2"
+                      value={url}
+                      placeholder={`Image URL #${i + 1}`}
+                      onChange={(e) => {
+                        const next = [...images];
+                        next[i] = e.target.value;
+                        setImages(next);
+                      }}
+                    />
+                  ))}
+
+                  {/* Preview */}
+                  <div className="mt-4 h-48 flex items-center justify-center bg-gray-100">
+                    {previewUrl || images[activeImagePreview]?.trim() ? (
+                      <img
+                        src={previewUrl || images[activeImagePreview]}
+                        alt="Preview"
+                        className="max-h-full"
+                        onError={(e) =>
+                          (e.currentTarget.src =
+                            "https://via.placeholder.com/400x200?text=Invalid")
+                        }
+                      />
+                    ) : (
+                      <span className="text-gray-500">No preview</span>
+                    )}
+                  </div>
+                </Form.Item>
                     <Button icon={<FiPlus />}>Upload</Button>
                   </Upload>
                   <Button
