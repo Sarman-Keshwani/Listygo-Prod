@@ -34,7 +34,7 @@ const HomePageHotelCard = () => {
     const fetchHotels = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_URL}/hotels?limit=4`);
+        const response = await axios.get(`${API_URL}/listings?limit=4`);
 
         if (response.data.success) {
           setHotels(response.data.data);
@@ -51,7 +51,7 @@ const HomePageHotelCard = () => {
 
   // Handle navigation to hotel details page
   // const handleHotelClick = (hotelId) => {
-  //   navigate(`/hotels/${hotelId}`);
+  //   navigate(`/listings/${hotelId}`);
   // };
 
   const container = {
@@ -86,7 +86,7 @@ const HomePageHotelCard = () => {
 
           <Title level={2} className="text-3xl md:text-4xl font-bold mb-4">
             Our <span className="text-blue-600">Most Popular</span>{" "}
-            Accommodations
+            Listings
           </Title>
 
           <Paragraph className="text-gray-600 max-w-2xl mx-auto">
@@ -111,7 +111,7 @@ const HomePageHotelCard = () => {
               {hotels.map((hotel) => (
                 <Col xs={24} sm={12} lg={6} key={hotel._id}>
                   <motion.div variants={item} className="h-full">
-                    <Badge.Ribbon text={`$${hotel.price}/night`} color="blue">
+                    <Badge.Ribbon text={`₹${hotel.price}`} color="blue">
                       <Card
                         hoverable
                         className="overflow-hidden h-full"
@@ -132,12 +132,12 @@ const HomePageHotelCard = () => {
                                   "https://via.placeholder.com/300x200?text=Error+Loading+Image";
                               }}
                             />
-                            <div className="absolute top-2 right-2">
+                            {/* <div className="absolute top-2 right-2">
                               <Tag color="gold" className="flex items-center">
                                 <StarOutlined className="mr-1" />
                                 {hotel.rating || "4.5"}
                               </Tag>
-                            </div>
+                            </div> */}
                           </div>
                         }
                       >
@@ -165,7 +165,8 @@ const HomePageHotelCard = () => {
                           size="small"
                           className="bg-blue-600 hover:bg-blue-700 mt-auto"
                           onClick={(e) => {
-                            e.stopPropagation();
+                            e.stopPropagation(); // Prevent card click event
+                            navigate(`/listings/${hotel._id}`);
                           }}
                         >
                           View Details

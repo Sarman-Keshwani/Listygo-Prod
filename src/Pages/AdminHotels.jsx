@@ -38,7 +38,7 @@ const AdminHotels = () => {
   const fetchHotels = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/hotels`, {
+      const response = await axios.get(`${API_URL}/listings`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setExistingHotels(response.data.data);
@@ -132,7 +132,7 @@ const AdminHotels = () => {
       if (editingHotelId) {
         // Update existing hotel
         await axios.put(
-          `${API_URL}/hotels/${editingHotelId}`,
+          `${API_URL}/listings/${editingHotelId}`,
           hotelData,
           {
             headers: {
@@ -145,7 +145,7 @@ const AdminHotels = () => {
       } else {
         // Create new hotel
         await axios.post(
-          `${API_URL}/hotels`, 
+          `${API_URL}/listings`, 
           hotelData,
           {
             headers: {
@@ -178,7 +178,7 @@ const AdminHotels = () => {
     if (!window.confirm('Are you sure you want to delete this hotel?')) return;
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/hotels/${hotelId}`, {
+      await axios.delete(`${API_URL}/listings/${hotelId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

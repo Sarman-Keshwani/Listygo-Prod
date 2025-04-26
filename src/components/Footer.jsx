@@ -164,7 +164,7 @@ const FooterSection = () => {
                   </Link>
                   </li>
                   <li>
-                  <Link to="/hotels" className="text-blue-200 hover:text-white transition-colors flex items-center">
+                  <Link to="/listings" className="text-blue-200 hover:text-white transition-colors flex items-center">
                     <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-2"></span>
                     Book Your Stay
                   </Link>

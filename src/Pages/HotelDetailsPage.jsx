@@ -38,7 +38,7 @@ const HotelDetailsPage = () => {
     const fetchHotel = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_URL}/hotels/${id}`);
+        const response = await axios.get(`${API_URL}/listings/${id}`);
         
         if (response.data.success) {
           setHotel(response.data.data);
@@ -149,7 +149,7 @@ const HotelDetailsPage = () => {
         title="Something went wrong"
         subTitle={error || "We couldn't find this hotel. It might have been removed or there was a connection error."}
         extra={
-          <Button type="primary" onClick={() => navigate('/hotels')}>
+          <Button type="primary" onClick={() => navigate('/listings')}>
             Back to Hotels
           </Button>
         }
@@ -170,7 +170,7 @@ const HotelDetailsPage = () => {
                 </a>
               </Breadcrumb.Item>
               <Breadcrumb.Item>
-                <a onClick={() => navigate('/hotels')}>Hotels</a>
+                <a onClick={() => navigate('/listings')}>Hotels</a>
               </Breadcrumb.Item>
               <Breadcrumb.Item>{hotel.name}</Breadcrumb.Item>
             </Breadcrumb>
@@ -385,7 +385,7 @@ const HotelDetailsPage = () => {
           <Col xs={24} xl={8}>
             <div className="sticky space-y-2 top-24">
               <Badge.Ribbon 
-                text={`$${hotel.price}/night`}
+                text={`₹${hotel.price}`}
                 color="blue"
               >
                 <Card 

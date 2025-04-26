@@ -194,7 +194,7 @@ const ListingDetailsPage = () => {
                 </Space>
               </div>
               
-              <Badge.Ribbon text={`$${listing.price}`} color="blue">
+              <Badge.Ribbon text={`₹${listing.price}`} color="blue">
                 <Card className="mb-4 md:mb-0 bg-white shadow-sm">
                   <div className="text-center">
                     <Title level={4} className="mb-0">${listing.price}</Title>

@@ -1013,13 +1013,13 @@ const handleStateChange = (stateId) => {
                   >
                     <Button icon={<FiPlus />}>Upload</Button>
                   </Upload>
-                  <Button
+                  {/* <Button
                     type="dashed"
                     onClick={() => setImages([...images, ""])}
                     className="mt-2"
                   >
                     Add URL Field
-                  </Button>
+                  </Button> */}
 
                   {/* URL inputs */}
                   {images.map((url, i) => (

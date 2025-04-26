@@ -371,7 +371,7 @@ const MyAccount = () => {
                   <h5 className="font-medium mb-1 truncate">Grand Hotel Example {i}</h5>
                   <div className="text-sm text-gray-500 mb-2">New York, USA</div>
                   <div className="flex justify-between items-center">
-                    <div className="text-sm font-medium text-blue-600">$129 <span className="text-gray-500 text-xs font-normal">/night</span></div>
+                    <div className="text-sm font-medium text-blue-600">$129 <span className="text-gray-500 text-xs font-normal"></span></div>
                     <div className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full">4.8 ★</div>
                   </div>
                 </div>

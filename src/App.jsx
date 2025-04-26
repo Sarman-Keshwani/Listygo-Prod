@@ -76,12 +76,12 @@ function App() {
             </MainLayout>
           </ProtectedRoute>
         } />
-        <Route path="/hotels" element={
+        <Route path="/listings" element={
           <MainLayout>
             <HotelCard />
           </MainLayout>
         } />
-        <Route path="/hotels/:id" element={
+        <Route path="/listings/:id" element={
           <MainLayout>
             <HotelDetailsPage />
           </MainLayout>
@@ -113,10 +113,10 @@ function App() {
             <AdminLoginPage />
           </CleanLayout>
         } />
-        <Route path="/admin/hotels" element={
+        <Route path="/admin/listings" element={
           <ProtectedRoute isAdmin={true}>
             <MainLayout>
-              <AdminHotels />
+              <AdminListings />
             </MainLayout>
           </ProtectedRoute>
         } />

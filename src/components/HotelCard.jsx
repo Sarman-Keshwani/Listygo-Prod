@@ -36,7 +36,7 @@ const HotelCard = () => {
     const fetchHotels = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_URL}/hotels`);
+        const response = await axios.get(`${API_URL}/listings`);
         
         if (response.data.success) {
           setHotels(response.data.data);
@@ -76,7 +76,7 @@ const HotelCard = () => {
 
   // Handle navigation to hotel details page
   const handleHotelClick = (hotelId) => {
-    navigate(`/hotels/${hotelId}`);
+    navigate(`/listings/${hotelId}`);
   };
 
   return (
@@ -96,7 +96,7 @@ const HotelCard = () => {
             <Button 
               type="link" 
               icon={<ArrowRightOutlined />} 
-              onClick={() => navigate('/hotels')}
+              onClick={() => navigate('/listings')}
               className="text-blue-600 hover:text-blue-700"
             >
               See all listings
@@ -195,7 +195,7 @@ const HotelCard = () => {
                   transition={{ duration: 0.3 }}
                   className='mt-5'
                 >
-                  <Badge.Ribbon text={`$${hotel.price}/night`} color="blue">
+                  <Badge.Ribbon text={`₹${hotel.price}`} color="blue">
                     <Card 
                       hoverable
                       className="overflow-hidden"
@@ -321,7 +321,7 @@ const HotelCard = () => {
               type="primary"
               size="large"
               icon={<HomeOutlined />}
-              onClick={() => navigate('/hotels')}
+              onClick={() => navigate('/listings')}
               className="bg-blue-600 hover:bg-blue-700 px-8 h-12"
             >
               View All Hotels

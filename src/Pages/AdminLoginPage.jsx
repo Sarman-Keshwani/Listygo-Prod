@@ -1,42 +1,42 @@
-import React, { useState } from 'react';
-import { FiMail, FiLock } from 'react-icons/fi';
-import { AiOutlineEyeInvisible, AiOutlineEye } from 'react-icons/ai';
+import React, { useState } from "react";
+import { FiMail, FiLock } from "react-icons/fi";
+import { AiOutlineEyeInvisible, AiOutlineEye } from "react-icons/ai";
 // eslint-disable-next-line no-unused-vars
-import { motion } from 'framer-motion';
-import axios from 'axios';
-import { useNavigate, Link } from 'react-router-dom';
+import { motion } from "framer-motion";
+import axios from "axios";
+import { useNavigate, Link } from "react-router-dom";
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState('');
+  const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     // Form validation
     if (!email || !password) {
-      setError('Please enter both email and password.');
+      setError("Please enter both email and password.");
       return;
     }
 
     if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('Please enter a valid email address.');
+      setError("Please enter a valid email address.");
       return;
     }
 
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       // Make admin login request
       const response = await axios.post(`${API_URL}/admin/login`, {
         email,
-        password
+        password,
       });
 
       // Handle successful response
@@ -44,24 +44,24 @@ const AdminLoginPage = () => {
         const { token, admin } = response.data;
 
         // Store authentication info
-        localStorage.setItem('token', token);
-        localStorage.setItem('isAuthenticated', 'true');
-        localStorage.setItem('userRole', admin.role);
-        localStorage.setItem('userId', admin.id);
-        localStorage.setItem('userName', admin.name);
-        
-        setSuccess('Admin login successful! Redirecting...');
-        
+        localStorage.setItem("token", token);
+        localStorage.setItem("isAuthenticated", "true");
+        localStorage.setItem("userRole", admin.role);
+        localStorage.setItem("userId", admin.id);
+        localStorage.setItem("userName", admin.name);
+
+        setSuccess("Admin login successful! Redirecting...");
+
         // Redirect to admin dashboard
         setTimeout(() => {
-          navigate('/admin/hotels');
+          navigate("/admin/listings");
         }, 1500);
       }
     } catch (error) {
-      console.error('Admin login error:', error);
+      console.error("Admin login error:", error);
       setError(
-        error.response?.data?.error || 
-        'Login failed. Please check your credentials.'
+        error.response?.data?.error ||
+          "Login failed. Please check your credentials."
       );
     } finally {
       setLoading(false);
@@ -83,9 +83,9 @@ const AdminLoginPage = () => {
           className="w-full h-full object-cover opacity-70"
         />
         <div className="absolute top-1/3 left-20 text-white">
-          <h3 className="text-4xl font-bold">Admin Portal</h3>
-          <p className="text-lg mt-4">
-            Manage your listings and users with the ListyGo admin dashboard.
+          <h3 className="text-4xl font-bold">Vendor Portal</h3>
+          <p className="text-lg mt-4 flex overflow-auto">
+            Manage your listings and users with the ListyGo vendor dashboard.
           </p>
         </div>
       </motion.div>
@@ -100,23 +100,33 @@ const AdminLoginPage = () => {
         {/* Logo */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-2xl font-bold">
-            <img src="/Logo.png" alt="logo" className="h-12 object-contain w-12" />
-            <span>ListyGo Admin</span>
+            <img
+              src="/Logo.png"
+              alt="logo"
+              className="h-12 object-contain w-12"
+            />
+            <span>ListyGo Vendor</span>
           </div>
         </div>
 
         {/* Heading */}
-        <h2 className="text-3xl font-bold mb-4">Admin Sign In</h2>
-        <p className="mb-6 text-gray-600">
-          Access your administrator dashboard
-        </p>
+        <h2 className="text-3xl font-bold mb-4">Vendor Sign In</h2>
+        <p className="mb-6 text-gray-600">Access your Vendor dashboard</p>
 
         {/* Error and Success Messages */}
-        {error && <p className="text-red-600 mb-4 p-3 bg-red-50 rounded">{error}</p>}
-        {success && <p className="text-green-600 mb-4 p-3 bg-green-50 rounded">{success}</p>}
+        {error && (
+          <p className="text-red-600 mb-4 p-3 bg-red-50 rounded">{error}</p>
+        )}
+        {success && (
+          <p className="text-green-600 mb-4 p-3 bg-green-50 rounded">
+            {success}
+          </p>
+        )}
 
         {/* Email */}
-        <label className="text-sm text-gray-500 font-medium">Admin Email</label>
+        <label className="text-sm text-gray-500 font-medium">
+          Vendor Email
+        </label>
         <div className="flex items-center border-2 border-blue-800 rounded-md mb-6 py-2 px-3">
           <FiMail className="text-blue-800 mr-2" />
           <input
@@ -139,12 +149,15 @@ const AdminLoginPage = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <div 
-            onClick={() => setShowPassword(!showPassword)} 
-            className="cursor-pointer">
-            {showPassword 
-              ? <AiOutlineEye className="text-gray-600" /> 
-              : <AiOutlineEyeInvisible className="text-gray-600" />}
+          <div
+            onClick={() => setShowPassword(!showPassword)}
+            className="cursor-pointer"
+          >
+            {showPassword ? (
+              <AiOutlineEye className="text-gray-600" />
+            ) : (
+              <AiOutlineEyeInvisible className="text-gray-600" />
+            )}
           </div>
         </div>
 
@@ -162,12 +175,12 @@ const AdminLoginPage = () => {
           onClick={handleLogin}
           disabled={loading}
           className={`${
-            loading ? 'bg-gray-400' : 'bg-blue-800 hover:bg-blue-900'
+            loading ? "bg-gray-400" : "bg-blue-800 hover:bg-blue-900"
           } text-white font-semibold py-3 rounded-md shadow-lg`}
         >
-          {loading ? 'Logging in...' : 'Login to Admin Panel'}
+          {loading ? "Logging in..." : "Login to Vendor Panel"}
         </motion.button>
-        
+
         {/* Back to main site */}
         <div className="mt-8 text-center">
           <Link to="/" className="text-blue-800 hover:underline">

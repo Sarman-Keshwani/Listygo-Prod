@@ -206,7 +206,7 @@ const ListingsPage = () => {
 
   const renderGridItem = (listing) => (
     <motion.div whileHover={{ y: -5 }} key={listing._id} className="mb-5">
-      <Badge.Ribbon text={`$${listing.price}`} color="blue">
+      <Badge.Ribbon text={`₹${listing.price}`} color="blue">
         <Card
           hoverable
           onClick={() => handleListingClick(listing._id)}

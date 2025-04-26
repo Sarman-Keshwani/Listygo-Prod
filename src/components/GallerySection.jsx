@@ -144,7 +144,7 @@ const GallerySection = () => {
                       <StarFilled className="mr-1" />
                       {listing.rating || "4.5"}
                     </span>
-                    <span className="text-white/90 text-sm">${listing.price}</span>
+                    <span className="text-white/90 text-sm">₹{listing.price}</span>
                     {listing.category && <Tag className="ml-1" color="blue">{listing.category.name}</Tag>}
                   </div>
                 </div>
