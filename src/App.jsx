@@ -24,12 +24,14 @@ import AdminListings from './Pages/AdminListings';
 import AdminCategories from './Pages/AdminCategories';
 import ListingsPage from './Pages/ListingsPage';
 import ListingDetailsPage from './Pages/ListingDetailsPage';
+import EmptyGrids from './components/EmptyGrids';
 
 function HomePage() {
   return (
     <>
        <Header />
       <Destinations />
+      <EmptyGrids/>
       <HomePageHotelCard />
       <HostSection />
       <GallerySection />

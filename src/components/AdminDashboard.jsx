@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, Statistic, Row, Col, Button, Table, Tag, Avatar, Select } from 'antd';
-import { FiUser, FiHome, FiActivity, FiLayers, FiList, FiGrid , FiPlus  } from 'react-icons/fi';
+import { FiUser, FiHome, FiActivity, FiLayers, FiList, FiGrid, FiPlus, FiLayout } from 'react-icons/fi';
 import { fetchAdminData } from '../services/adminService';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { LayoutEditor } from './LayoutEditor';
 
 const { Option } = Select;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -13,6 +14,14 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [adminData, setAdminData] = useState(null);
   const [categories, setCategories] = useState([]);
+  const [layoutData, setLayoutData] = useState({
+    large1: "",
+    large2: "",
+    small1: "",
+    small2: "",
+    small3: ""
+  });
+  const [showLayoutEditor, setShowLayoutEditor] = useState(false);
 
   const navigate = useNavigate();
   
@@ -46,6 +55,20 @@ const AdminDashboard = () => {
     }
   };
 
+  const fetchLayoutData = async () => {
+    try {
+      // Corrected API endpoint
+      const response = await axios.get(`${API_URL}/layout`, {
+        withCredentials: true
+      });
+      if (response.data.success) {
+        setLayoutData(response.data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching layout data:', error);
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -62,6 +85,9 @@ const AdminDashboard = () => {
         // Fetch dashboard data
         const data = await fetchAdminData();
         setAdminData(data);
+        
+        // Fetch layout data
+        await fetchLayoutData();
       } catch (error) {
         console.error("Failed to fetch admin data", error);
       }
@@ -183,8 +209,30 @@ const AdminDashboard = () => {
           >
             Manage Listings
           </Button>
+          <Button 
+            type="primary" 
+            icon={<FiLayout />}
+            onClick={() => setShowLayoutEditor(!showLayoutEditor)}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {showLayoutEditor ? "Hide Layout Editor" : "Edit Layout"}
+          </Button>
         </div>
       </div>
+
+      {showLayoutEditor && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="mb-8"
+        >
+          <LayoutEditor 
+            boxData={layoutData} 
+            onUpdate={fetchLayoutData} 
+          />
+        </motion.div>
+      )}
 
       <Row gutter={[16, 16]}>
         <Col xs={24} sm={12} md={8}>

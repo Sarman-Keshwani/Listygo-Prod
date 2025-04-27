@@ -250,14 +250,14 @@ const Navbar = () => {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-4">
-            <button
+            {/* <button
               onClick={() => setSearchVisible(!searchVisible)}
               className="text-gray-500 hover:text-blue-400 transition-colors"
             >
               <Search size={20} />
-            </button>
+            </button> */}
 
-            {userAuthenticated && (
+            {/* {userAuthenticated && (
               <Badge count={3} size="small">
                 <Link
                   to="/notifications"
@@ -266,7 +266,7 @@ const Navbar = () => {
                   <Bell size={20} />
                 </Link>
               </Badge>
-            )}
+            )} */}
 
             <button
               onClick={toggleMenu}
@@ -279,7 +279,7 @@ const Navbar = () => {
         </div>
 
         {/* Search bar overlay */}
-        <AnimatePresence>
+        {/* <AnimatePresence>
           {searchVisible && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -307,7 +307,7 @@ const Navbar = () => {
               </div>
             </motion.div>
           )}
-        </AnimatePresence>
+        </AnimatePresence> */}
 
         {/* Mobile Dropdown */}
         <AnimatePresence>
@@ -397,14 +397,14 @@ const Navbar = () => {
                     >
                       <User size={16} /> My Profile
                     </Link>
-                    <Link
+                    {/* <Link
                       to="/notifications"
                       className="py-2 text-gray-700 flex items-center gap-2"
                       onClick={() => setMenuOpen(false)}
                     >
                       <Bell size={16} /> Notifications{" "}
                       <Badge count={3} className="ml-1" />
-                    </Link>
+                    </Link> */}
                     <button
                       onClick={() => {
                         handleLogout();
