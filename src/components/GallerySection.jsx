@@ -79,31 +79,31 @@ const GallerySection = () => {
   };
 
   return (
-    <section className="px-4 md:px-10 py-16 bg-blue-50">
+    <section className="px-4 md:px-10 py-10 md:py-16 bg-blue-50">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.7 }}
-          className="mb-12 text-center"
+          className="mb-8 md:mb-12 text-center"
         >
-          <div className="inline-flex items-center justify-center bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-sm font-medium mb-4">
+          <div className="inline-flex items-center justify-center bg-blue-100 text-blue-600 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium mb-3 md:mb-4">
             <CameraOutlined className="mr-1" /> Featured Listings
           </div>
           
-          <Title level={2} className="text-3xl md:text-4xl font-bold mb-4">
+          <Title level={2} className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4">
             Explore Our <span className="text-blue-600">Featured Properties</span>
           </Title>
           
-          <Text className="text-gray-600 max-w-2xl mx-auto block">
+          <Text className="text-gray-600 text-sm md:text-base max-w-2xl mx-auto block px-2">
             Browse through our curated collection of listings across multiple categories.
             Find the perfect property that meets your needs.
           </Text>
         </motion.div>
 
         {loading ? (
-          <div className="flex justify-center items-center py-20">
+          <div className="flex justify-center items-center py-10 md:py-20">
             <Spin size="large" />
           </div>
         ) : (
@@ -112,7 +112,7 @@ const GallerySection = () => {
             initial="hidden"
             whileInView="show"
             viewport={{ once: true, amount: 0.1 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6"
+            className="grid grid-cols-1 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6"
           >
             {listings.map((listing, idx) => (
               <motion.div
@@ -125,7 +125,7 @@ const GallerySection = () => {
                   <img
                     src={listing.images && listing.images.length > 0 ? listing.images[0] : 'https://via.placeholder.com/800x600?text=No+Image'}
                     alt={listing.name}
-                    className="w-full h-[250px] object-cover transition-transform duration-700 group-hover:scale-110"
+                    className="w-full h-[180px] sm:h-[200px] md:h-[220px] lg:h-[250px] object-cover transition-transform duration-700 group-hover:scale-110"
                     onError={(e) => {
                       e.target.onerror = null;
                       e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
@@ -133,19 +133,19 @@ const GallerySection = () => {
                   />
                 </div>
                 <div className="absolute inset-0 bg-black/[0.4] bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-300 flex items-center justify-center">
-                  <div className="bg-white text-blue-600 w-10 h-10 rounded-full flex items-center justify-center transform scale-0 group-hover:scale-100 transition-transform duration-300">
+                  <div className="bg-white text-blue-600 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transform scale-0 group-hover:scale-100 transition-transform duration-300">
                     <CameraOutlined />
                   </div>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-                  <h3 className="text-white font-medium truncate">{listing.name}</h3>
-                  <div className="flex items-center gap-2">
-                    <span className="text-blue-500 flex items-center">
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 sm:p-3 md:p-4">
+                  <h3 className="text-white text-sm sm:text-base font-medium truncate">{listing.name}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-blue-500 flex items-center text-xs sm:text-sm">
                       <StarFilled className="mr-1" />
                       {listing.rating || "4.5"}
                     </span>
-                    <span className="text-white/90 text-sm">₹{listing.price}</span>
-                    {listing.category && <Tag className="ml-1" color="blue">{listing.category.name}</Tag>}
+                    <span className="text-white/90 text-xs sm:text-sm">₹{listing.price}</span>
+                    {listing.category && <Tag className="ml-1 text-xs py-0" color="blue">{listing.category.name}</Tag>}
                   </div>
                 </div>
               </motion.div>
@@ -159,14 +159,14 @@ const GallerySection = () => {
           visible={visible}
           footer={null}
           onCancel={() => setVisible(false)}
-          width={1200}
+          width="90%"
           centered
           className="gallery-modal"
         >
-          <div className="flex flex-col md:flex-row gap-6">
+          <div className="flex flex-col md:flex-row gap-4 md:gap-6">
             {/* Left side - Image section */}
             <div className="w-full md:w-3/5">
-              <div className="relative min-h-[400px] bg-gray-100 rounded-lg">
+              <div className="relative min-h-[200px] sm:min-h-[300px] md:min-h-[400px] bg-gray-100 rounded-lg">
                 <Image
                   src={selectedListing.images && selectedListing.images.length > 0 
                     ? selectedListing.images[selectedImage] 
@@ -175,9 +175,18 @@ const GallerySection = () => {
                   className="rounded-lg"
                   style={{ 
                     width: '100%', 
-                    height: '500px',
+                    height: '250px',
                     objectFit: 'cover',
-                    objectPosition: 'center'
+                    objectPosition: 'center',
+                    '@media (min-width: 640px)': {
+                      height: '350px',
+                    },
+                    '@media (min-width: 768px)': {
+                      height: '400px',
+                    },
+                    '@media (min-width: 1024px)': {
+                      height: '500px',
+                    }
                   }}
                   preview={false}
                   placeholder={
@@ -192,10 +201,11 @@ const GallerySection = () => {
                 />
                 
                 {/* Image navigation */}
-                <div className="absolute top-1/2 left-0 right-0 flex justify-between transform -translate-y-1/2 px-4">
+                <div className="absolute top-1/2 left-0 right-0 flex justify-between transform -translate-y-1/2 px-2 md:px-4">
                   <Button 
                     shape="circle" 
-                    icon={<LeftOutlined />} 
+                    icon={<LeftOutlined />}
+                    size={window.innerWidth < 640 ? "small" : "middle"}
                     className="bg-white/80 hover:bg-white shadow-md"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -203,7 +213,8 @@ const GallerySection = () => {
                     }}
                   />
                   <Button 
-                    shape="circle" 
+                    shape="circle"
+                    size={window.innerWidth < 640 ? "small" : "middle"}
                     icon={<RightOutlined />} 
                     className="bg-white/80 hover:bg-white shadow-md"
                     onClick={(e) => {
@@ -214,17 +225,17 @@ const GallerySection = () => {
                 </div>
                 
                 {/* Image counter */}
-                <div className="absolute bottom-4 right-4 bg-black/60 text-white px-3 py-1 rounded-full text-sm">
+                <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black/60 text-white px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm">
                   {selectedImage + 1} / {selectedListing.images?.length || 1}
                 </div>
               </div>
               
               {/* Thumbnail gallery */}
-              <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+              <div className="flex gap-1 md:gap-2 mt-2 md:mt-4 overflow-x-auto pb-2">
                 {selectedListing.images && selectedListing.images.map((img, idx) => (
                   <div 
                     key={idx}
-                    className={`cursor-pointer rounded-md overflow-hidden w-16 h-16 flex-shrink-0 border-2 ${
+                    className={`cursor-pointer rounded-md overflow-hidden w-12 h-12 md:w-16 md:h-16 flex-shrink-0 border-2 ${
                       selectedImage === idx ? 'border-blue-500' : 'border-transparent'
                     }`}
                     onClick={() => setSelectedImage(idx)}
@@ -246,12 +257,13 @@ const GallerySection = () => {
             {/* Right side - Property details */}
             <div className="w-full md:w-2/5">
               {/* Property title and save button */}
-              <div className="flex justify-between items-start mb-4">
-                <h2 className="text-2xl font-bold text-blue-600">
+              <div className="flex justify-between items-start mb-3 md:mb-4">
+                <h2 className="text-xl md:text-2xl font-bold text-blue-600">
                   {selectedListing.name}
                 </h2>
                 <Button
                   shape="circle"
+                  size={window.innerWidth < 640 ? "small" : "middle"}
                   icon={<HeartOutlined />} 
                   className="text-red-500 border-red-200 hover:border-red-500"
                   onClick={() => message.success('Added to favorites!')}
@@ -259,77 +271,80 @@ const GallerySection = () => {
               </div>
               
               {/* Category and location */}
-              <div className="mb-3">
+              <div className="mb-2 md:mb-3">
                 {selectedListing.category && 
-                  <Tag color="blue" className="mr-2">{selectedListing.category.name}</Tag>
+                  <Tag color="blue" className="mr-2 text-xs md:text-sm">{selectedListing.category.name}</Tag>
                 }
               </div>
               
               {/* Location and rating */}
-              <div className="flex items-center gap-4 mb-6">
+              <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4 mb-4 md:mb-6">
                 <div className="flex items-center">
                   <EnvironmentOutlined className="text-blue-500 mr-1" />
-                  <Text>{selectedListing.location}</Text>
+                  <Text className="text-xs sm:text-sm">{selectedListing.location}</Text>
                 </div>
                 <div className="flex items-center">
                   <StarFilled className="text-yellow-400 mr-1" />
-                  <Text>{selectedListing.rating || "4.5"} rating</Text>
+                  <Text className="text-xs sm:text-sm">{selectedListing.rating || "4.5"} rating</Text>
                 </div>
               </div>
               
               {/* Price information */}
-              <div className="bg-blue-50 rounded-lg p-4 mb-6">
+              <div className="bg-blue-50 rounded-lg p-3 md:p-4 mb-4 md:mb-6">
                 <div className="flex justify-between items-center">
-                  <Text strong className="text-lg">Price</Text>
+                  <Text strong className="text-base md:text-lg">Price</Text>
                   <div>
-                    <Text className="text-xl font-bold text-blue-600">
+                    <Text className="text-lg md:text-xl font-bold text-blue-600">
                       ${selectedListing.price}
                     </Text>
                     {selectedListing.category && selectedListing.category.name === "Hotels" && 
-                      <Text className="text-gray-500"> / night</Text>
+                      <Text className="text-gray-500 text-sm md:text-base"> / night</Text>
                     }
                   </div>
                 </div>
-                <Text type="secondary" className="block mt-1">
+                <Text type="secondary" className="block mt-1 text-xs md:text-sm">
                   {selectedListing.attributes?.priceType || "Includes all taxes and fees"}
                 </Text>
               </div>
               
               {/* Property description */}
-              <div className="mb-6">
-                <Title level={5} className="mb-3">About this listing</Title>
-                <Paragraph className="text-gray-600">
+              <div className="mb-4 md:mb-6">
+                <Title level={5} className="mb-2 md:mb-3 text-sm md:text-base">About this listing</Title>
+                <Paragraph className="text-gray-600 text-xs md:text-sm line-clamp-3 md:line-clamp-none">
                   {selectedListing.description}
                 </Paragraph>
               </div>
               
-              {/* Amenities */}
-              <div className="mb-6">
-                <Title level={5} className="mb-3">Amenities</Title>
-                <div className="grid grid-cols-2 gap-y-3">
+              {/* Mobile-optimized amenities */}
+              <div className="mb-4 md:mb-6">
+                <Title level={5} className="mb-2 md:mb-3 text-sm md:text-base">Amenities</Title>
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-y-2 md:gap-y-3">
                   {selectedListing.amenities ? (
-                    selectedListing.amenities.map((amenity, idx) => (
+                    selectedListing.amenities.slice(0, window.innerWidth < 768 ? 4 : 8).map((amenity, idx) => (
                       <div key={idx} className="flex items-center">
-                        <CheckCircleOutlined className="text-blue-500 mr-2" />
-                        <Text>{amenity}</Text>
+                        <CheckCircleOutlined className="text-blue-500 mr-2 text-xs md:text-sm" />
+                        <Text className="text-xs md:text-sm">{amenity}</Text>
                       </div>
                     ))
                   ) : (
                     <>
                       <div className="flex items-center">
-                        <CheckCircleOutlined className="text-blue-500 mr-2" />
-                        <Text>WiFi</Text>
+                        <CheckCircleOutlined className="text-blue-500 mr-2 text-xs md:text-sm" />
+                        <Text className="text-xs md:text-sm">WiFi</Text>
                       </div>
                       <div className="flex items-center">
-                        <CheckCircleOutlined className="text-blue-500 mr-2" />
-                        <Text>Air conditioning</Text>
+                        <CheckCircleOutlined className="text-blue-500 mr-2 text-xs md:text-sm" />
+                        <Text className="text-xs md:text-sm">Air conditioning</Text>
                       </div>
                     </>
+                  )}
+                  {selectedListing.amenities && selectedListing.amenities.length > (window.innerWidth < 768 ? 4 : 8) && (
+                    <Text className="text-blue-500 text-xs md:text-sm">+{selectedListing.amenities.length - (window.innerWidth < 768 ? 4 : 8)} more</Text>
                   )}
                 </div>
               </div>
               
-              {/* Attributes display */}
+              {/* Simplified features for mobile */}
               {selectedListing.attributes && (
                 <div className="mb-6">
                   <Title level={5} className="mb-2">Features</Title>
@@ -375,10 +390,10 @@ const GallerySection = () => {
               )}
 
               {/* Action buttons */}
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2 md:gap-3 mt-4">
                 <Button 
                   type="primary" 
-                  size="large"
+                  size={window.innerWidth < 640 ? "middle" : "large"}
                   block
                   icon={<CalendarOutlined />}
                   className="bg-blue-600 hover:bg-blue-700"
@@ -392,10 +407,10 @@ const GallerySection = () => {
                   View Details
                 </Button>
                 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
                   <Button 
                     icon={<PhoneOutlined />}
-                    size="large"
+                    size={window.innerWidth < 640 ? "middle" : "large"}
                     onClick={() => {
                       // Use owner's phone if available
                       const phoneNumber = selectedListing.owner?.phone || "917435070468";
@@ -403,11 +418,12 @@ const GallerySection = () => {
                       message.info(`Calling owner at ${phoneNumber}`);
                     }}
                   >
-                    Contact Owner
+                    <span className="hidden xs:inline">Contact Owner</span>
+                    <span className="inline xs:hidden">Call</span>
                   </Button>
                   <Button 
                     icon={<ShareAltOutlined />}
-                    size="large"
+                    size={window.innerWidth < 640 ? "middle" : "large"}
                     onClick={() => {
                       const domain = window.location.origin;
                       const listingUrl = `${domain}/listings/${selectedListing._id}`;

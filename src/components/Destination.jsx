@@ -33,7 +33,7 @@ const destinations = [
   {
     name: "Goa",
     image:  
-      "https://images.unsplash.com/photo-1614082242765-7c98ca0f3df3?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "https://th.bing.com/th/id/R.67fd4a3cc403b7dd575af0360941a6fd?rik=HbthKIIuxzoAeg&riu=http%3a%2f%2fblog.bedandchai.com%2fwp-content%2fuploads%2f2015%2f12%2fWorld___India_Relax_on_the_beach_in_Arambol_068131_.jpg&ehk=dIxvdw6D%2fxupxS1Id3hXKJh2aipbFjjY7qNHT8A8p3A%3d&risl=&pid=ImgRaw&r=0",
     description: "Sun, sand and beaches",
     longDescription:
       "Experience the perfect beach getaway with golden sands, clear waters, and vibrant nightlife.",
@@ -59,7 +59,7 @@ const destinations = [
   {
     name: "Kerala",
     image:
-      "https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8a2VyZWxhfGVufDB8fDB8fHww",
+      "https://th.bing.com/th/id/OIP.y9SrYIdwUgLL5-XlJdxMkwHaFj?rs=1&pid=ImgDetMain",
     description: "God's own country",
     longDescription:
       "Relax in the tranquil backwaters, lush greenery, and experience authentic Ayurvedic treatments.",
@@ -72,7 +72,7 @@ const destinations = [
   {
     name: "Rajasthan",
     image:
-      "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8cmFqYXN0aGFufGVufDB8fDB8fHww",
+      "https://www.tusktravel.com/images/kerala/kerala-tt-07.jpg",
     description: "Land of kings and palaces",
     longDescription:
       "Step back in time with majestic forts, ornate palaces, and the vibrant culture of royal India.",
@@ -85,7 +85,7 @@ const destinations = [
   {
     name: "Uttarakhand",
     image:
-      "https://images.unsplash.com/photo-1716573260891-23ad993e8833?q=80&w=1931&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
+      "https://www.arunaheather.com/wp-content/uploads/2016/12/1Rishikesh.jpg",
     description: "Spiritual highlands",
     longDescription:
       "Find peace and spirituality amidst the sacred rivers, ancient temples, and pristine forests.",
@@ -180,15 +180,31 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
     );
   };
 
+  // State to track screen width
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  // Update window width on resize
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Calculate visible cards based on viewport width
   const getVisibleCards = () => {
-    // We'll show a different number of cards based on viewport width
-    // This is just a visual calculation - you might adjust based on your design
     const cards = [];
     const totalDestinations = destinations.length;
     
+    if (totalDestinations === 0) return cards;
+    
+    // Determine how many cards to show based on screen width
+    const cardsToShow = windowWidth < 640 ? 1 : windowWidth < 1024 ? 2 : 3;
+    
     // Create an array of indices that represent cards to show
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < Math.min(cardsToShow, totalDestinations); i++) {
       const index = (currentIndex + i) % totalDestinations;
       cards.push(index);
     }
@@ -237,30 +253,30 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
   const visibleCards = getVisibleCards();
 
   return (
-    <section className="w-full py-20 px-4 md:px-10 bg-gradient-to-b from-white to-blue-50">
-      <div className="max-w-7xl pb-16 mx-auto">
+    <section className="w-full py-12 md:py-20 px-4 md:px-10 bg-gradient-to-b from-white to-blue-50">
+      <div className="max-w-7xl pb-8 md:pb-16 mx-auto">
         {/* Section Header with Enhanced Animations */}
         <motion.div
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, amount: 0.2 }}
-          className="text-center mb-16"
+          className="text-center mb-10 md:mb-16"
         >
           <motion.div
             variants={{
               hidden: { opacity: 0 },
-              show: { opacity: 1,  transition: { duration: 0.5 } },
+              show: { opacity: 1, transition: { duration: 0.5 } },
             }}
           >
-            <div className="inline-flex items-center justify-center bg-blue-100 text-blue-600 px-4 py-1.5 rounded-full text-sm font-medium mb-4 shadow-sm">
-              <CompassOutlined className="mr-2" /> Discover Amazing Places
+            <div className="inline-flex items-center justify-center bg-blue-100 text-blue-600 px-3 py-1 md:px-4 md:py-1.5 rounded-full text-xs md:text-sm font-medium mb-3 md:mb-4 shadow-sm">
+              <CompassOutlined className="mr-1 md:mr-2" /> Discover Amazing Places
             </div>
           </motion.div>
 
           <motion.div variants={titleAnimation}>
             <Title
               level={2}
-              className="text-3xl md:text-5xl font-extrabold mb-5 relative inline-block"
+              className="text-2xl sm:text-3xl md:text-5xl font-extrabold mb-3 md:mb-5 relative inline-block"
             >
               Explore The{" "}
               <span className="text-blue-600">Most Visited Places</span>
@@ -278,7 +294,7 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
               },
             }}
           >
-            <Paragraph className="text-gray-600 text-lg max-w-2xl mx-auto mb-8">
+            <Paragraph className="text-gray-600 text-sm md:text-lg max-w-2xl mx-auto mb-5 md:mb-8 px-2">
               Discover beautiful destinations across India with the best
               accommodations and experiences. Book your next adventure today!
             </Paragraph>
@@ -291,31 +307,31 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
           onMouseLeave={handleMouseLeave}
         >
           {/* Carousel Navigation Buttons */}
-          <div className="absolute top-1/2 -left-4 md:-left-8 z-10 transform -translate-y-1/2">
+          <div className="absolute top-1/2 -left-2 sm:-left-4 md:-left-8 z-10 transform -translate-y-1/2">
             <Button 
               type="primary" 
               shape="circle" 
               icon={<LeftOutlined />} 
               onClick={prevSlide}
               className="shadow-lg bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
-              size="large"
+              size={windowWidth < 640 ? "middle" : "large"}
             />
           </div>
 
-          <div className="absolute top-1/2 -right-4 md:-right-8 z-10 transform -translate-y-1/2">
+          <div className="absolute top-1/2 -right-2 sm:-right-4 md:-right-8 z-10 transform -translate-y-1/2">
             <Button 
               type="primary" 
               shape="circle" 
               icon={<RightOutlined />} 
               onClick={nextSlide}
               className="shadow-lg bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
-              size="large"
+              size={windowWidth < 640 ? "middle" : "large"}
             />
           </div>
 
           {/* Auto Scroll Toggle */}
-          <div className="absolute top-0 right-0 z-10 mb-4 flex items-center bg-white/80 px-3 py-1 rounded-full shadow-sm">
-            <Text className="text-xs mr-2">Auto Scroll</Text>
+          <div className="absolute top-0 right-0 z-10 mb-4 flex items-center bg-white/80 px-2 py-1 md:px-3 md:py-1 rounded-full shadow-sm">
+            <Text className="text-xs mr-1 hidden sm:inline">Auto Scroll</Text>
             <Switch 
               size="small"
               checked={isAutoScrolling}
@@ -333,7 +349,7 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
             <AnimatePresence mode="wait" initial={false}>
               <motion.div 
                 key={currentIndex}
-                className="flex justify-center gap-6"
+                className="flex justify-center gap-2 sm:gap-4 lg:gap-6"
                 initial={{ opacity: 0, x: 100 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -100 }}
@@ -344,13 +360,17 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                   return (
                     <motion.div
                       key={destIndex}
-                      className="cursor-pointer group w-full md:w-1/3"
+                      className={`cursor-pointer group ${
+                        windowWidth < 640 ? 'w-full' : 
+                        windowWidth < 1024 ? 'w-[48%]' : 
+                        'w-[31%]'
+                      }`}
                       onClick={() => handleCardClick(dest)}
                       onMouseEnter={() => setHoveredCard(destIndex)}
                       onMouseLeave={() => setHoveredCard(null)}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3, delay: 0.1 * (destIndex % 3) }}
+                      transition={{ duration: 0.3, delay: 0.1 * (destIndex % visibleCards.length) }}
                     >
                       <motion.div
                         whileHover={{ y: -8 }}
@@ -373,29 +393,33 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                           <Card
                             className="overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300"
                             cover={
-                              <div className="relative overflow-hidden h-[300px] md:h-[360px]">
+                              <div className="relative overflow-hidden h-[200px] sm:h-[240px] md:h-[300px] lg:h-[360px]">
                                 <img
                                   src={dest.image}
                                   alt={dest.name}
                                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = "https://via.placeholder.com/800x600?text=Image+Not+Available";
+                                  }}
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-70 group-hover:opacity-80 transition-opacity duration-300"></div>
 
                                 {/* Destination details overlay */}
-                                <div className="absolute text-white bottom-0 left-0 right-0 p-4">
-                                  <p className="text-white font-bold text-xl block mb-1">
+                                <div className="absolute text-white bottom-0 left-0 right-0 p-3 md:p-4">
+                                  <p className="text-white font-bold text-lg md:text-xl block mb-1">
                                     {dest.name}
                                   </p>
                                   <div className="flex items-center justify-between">
                                     <div className="flex items-center">
                                       <StarOutlined className="text-yellow-400 mr-1" />
-                                      <p className="text-white text-sm">
+                                      <p className="text-white text-xs md:text-sm">
                                         {dest.rating}
                                       </p>
                                     </div>
                                     <div className="flex items-center">
                                       <HomeOutlined className="text-white mr-1" />
-                                      <p className="text-white text-sm">
+                                      <p className="text-white text-xs md:text-sm">
                                         {dest.properties}
                                       </p>
                                     </div>
@@ -404,28 +428,28 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
 
                                 {/* Favorite button */}
                                 <button
-                                  className="absolute top-3 right-3 bg-white/80 hover:bg-white p-2 rounded-full shadow-md transition-all duration-300"
+                                  className="absolute top-3 right-3 bg-white/80 hover:bg-white p-1.5 md:p-2 rounded-full shadow-md transition-all duration-300"
                                   onClick={(e) => toggleFavorite(e, destIndex)}
                                 >
                                   {favorites.includes(destIndex) ? (
-                                    <HeartFilled className="text-red-500 text-lg" />
+                                    <HeartFilled className="text-red-500 text-base md:text-lg" />
                                   ) : (
-                                    <HeartOutlined className="text-gray-600 hover:text-red-500 text-lg" />
+                                    <HeartOutlined className="text-gray-600 hover:text-red-500 text-base md:text-lg" />
                                   )}
                                 </button>
                               </div>
                             }
-                            bodyStyle={{ padding: "16px" }}
+                            bodyStyle={{ padding: windowWidth < 640 ? "12px" : "16px" }}
                           >
                             <div className="px-1">
-                              <Paragraph className="text-gray-700 font-medium mb-2 line-clamp-2">
+                              <Paragraph className="text-gray-700 text-sm md:text-base font-medium mb-1 md:mb-2 line-clamp-2">
                                 {dest.description}
                               </Paragraph>
 
-                              <div className="flex flex-wrap gap-1 mt-3">
-                                {dest.tags?.map((tag, i) => (
+                              <div className="flex flex-wrap gap-1 mt-2 md:mt-3">
+                                {dest.tags?.slice(0, windowWidth < 640 ? 2 : 3).map((tag, i) => (
                                   <Tooltip title={`Search ${tag}`} key={i}>
-                                    <span className="text-xs bg-blue-50 text-blue-600 rounded-full px-2 py-1 inline-block">
+                                    <span className="text-xs bg-blue-50 text-blue-600 rounded-full px-1.5 py-0.5 md:px-2 md:py-1 inline-block">
                                       {tag}
                                     </span>
                                   </Tooltip>
@@ -435,16 +459,16 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                           </Card>
                         </Badge.Ribbon>
 
-                        {/* Info popup on hover */}
-                        {hoveredCard === destIndex && (
+                        {/* Info popup on hover - Only show on larger screens */}
+                        {hoveredCard === destIndex && windowWidth > 640 && (
                           <motion.div
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3 }}
-                            className="absolute mt-2 bg-white shadow-xl rounded-lg p-4 z-30 max-w-xs"
+                            className="absolute mt-2 bg-white shadow-xl rounded-lg p-3 md:p-4 z-30 max-w-xs"
                             style={{ width: "calc(100% - 10px)" }}
                           >
-                            <div className="text-sm text-gray-700">
+                            <div className="text-xs md:text-sm text-gray-700">
                               {dest.longDescription}
                             </div>
                             <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between">
@@ -467,12 +491,12 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
         </div>
 
         {/* Carousel Indicators */}
-        <div className="flex justify-center mt-8">
+        <div className="flex justify-center mt-4 md:mt-8">
           {destinations.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
-              className={`mx-1 w-3 h-3 rounded-full ${
+              className={`mx-0.5 md:mx-1 w-2 h-2 md:w-3 md:h-3 rounded-full ${
                 currentIndex === index ? "bg-blue-600" : "bg-gray-300"
               } transition-colors duration-300`}
               aria-label={`Go to slide ${index + 1}`}
@@ -486,12 +510,12 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.6, duration: 0.6 }}
-          className="text-center mt-12"
+          className="text-center mt-8 md:mt-12"
         >
           <Button 
             type="primary" 
-            size="large"
-            className="bg-blue-600 z-0 hover:bg-blue-700 px-8"
+            size={windowWidth < 640 ? "middle" : "large"}
+            className="bg-blue-600 z-0 hover:bg-blue-700 px-4 md:px-8"
             onClick={() => navigate('/listings')}
           >
             View All Destinations
