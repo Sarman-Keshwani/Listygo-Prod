@@ -32,42 +32,32 @@ export const registerUser = async (userData, endpoint = '/api/register') => {
   return response.data;
 };
 
-// Login user
-export const loginUser = async (userData) => {
-  const response = await axios.post(`${API_URL}/users/login`, userData);
-  if (response.data.success) {
-    storeUserData(response.data);
-  }
-  return response.data;
-};
-
-// Logout user
-export const logoutUser = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('isAuthenticated');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('userName');
-  localStorage.removeItem('userRole');
-  localStorage.removeItem('userEmail');
-  
-  // Call the logout endpoint
-  return axios.get(`${API_URL}/users/logout`)
-    .catch(err => console.error('Logout error:', err));
-};
-
-// Check if user is authenticated
+// Modify the isAuthenticated function to include admin persistence
 export const isAuthenticated = () => {
-  return localStorage.getItem('isAuthenticated') === 'true' && !!localStorage.getItem('token');
+  const token = localStorage.getItem("token");
+  const isAdminPersisted = localStorage.getItem("isAdmin") === "true";
+  
+  // Return true either if there's a valid token or admin status is persisted
+  return !!token || isAdminPersisted;
 };
 
 // Get current user data from localStorage
 export const getCurrentUser = () => {
-  return {
-    id: localStorage.getItem('userId'),
-    name: localStorage.getItem('userName'),
-    role: localStorage.getItem('userRole'),
-    email: localStorage.getItem('userEmail')
-  };
+  const userDataString = localStorage.getItem("userData");
+  const isAdminPersisted = localStorage.getItem("isAdmin") === "true";
+  
+  if (userDataString) {
+    return JSON.parse(userDataString);
+  } else if (isAdminPersisted) {
+    // Return a minimum admin object if admin persistence is enabled but no user data
+    return {
+      name: "Vendor",
+      role: "admin",
+      email: "admin@example.com"
+    };
+  }
+  
+  return null;
 };
 
 // Fetch current logged-in user or admin based on a flag (you can set this flag after login)
@@ -105,4 +95,31 @@ const storeUserData = (data) => {
   localStorage.setItem('userName', user.name);
   localStorage.setItem('userEmail', user.email);
   localStorage.setItem('userRole', 'user');
+};
+
+// Login user
+export const loginUser = async (userData) => {
+  const response = await axios.post(`${API_URL}/users/login`, userData);
+  if (response.data.success) {
+    storeUserData(response.data);
+  }
+  // If the user is an admin, store this information
+  if (userData.role === "admin" || userData.role === "super-admin") {
+    localStorage.setItem("isAdmin", "true");
+  }
+  return response.data;
+};
+
+// Logout user
+export const logoutUser = () => {
+  localStorage.removeItem('token');
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('userId');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userEmail');
+  
+  // Call the logout endpoint
+  return axios.get(`${API_URL}/users/logout`)
+    .catch(err => console.error('Logout error:', err));
 };

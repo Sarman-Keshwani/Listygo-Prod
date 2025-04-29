@@ -29,6 +29,14 @@ import {
   FiCheck,
   FiPackage,
   FiUsers,
+  FiWifi,
+  FiSquare,
+  FiWind,
+  FiMonitor,
+  FiDroplet,
+  FiActivity,
+  FiShoppingBag,
+  FiHeart,
 } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -276,7 +284,7 @@ const handleStateChange = (stateId) => {
     setImages(newImages);
   };
 
-  // 3) Simplified submit handler ↴
+  // Modify the handleFormSubmit function to properly sanitize amenities
   const handleFormSubmit = async (values) => {
     setFormLoading(true);
     try {
@@ -303,18 +311,38 @@ const handleStateChange = (stateId) => {
 
         fd.append("location", location);
       }
+      
+      // Set image replacement strategy
       fd.append("replaceImages", editingListingId ? "false" : "true");
 
-      // basic fields
-      Object.entries(values).forEach(([k, v]) => {
-        if (v != null && k !== "hours" && !k.startsWith("owner.")) {
-          fd.append(k, v);
+      // Add basic fields
+      const fieldsToAdd = [
+        'name', 'category', 'price', 'rating', 'description', 
+        'isFeatured', 'contactPhone', 'contactEmail', 'website'
+      ];
+      
+      fieldsToAdd.forEach(field => {
+        if (values[field] !== undefined && values[field] !== null) {
+          fd.append(field, values[field]);
         }
       });
 
-      // Add amenities
+      // Add tags with proper sanitization
+      if (values.tags && values.tags.length > 0) {
+        // Clean each tag to remove any unwanted characters
+        const sanitizedTags = values.tags.map(tag => 
+          typeof tag === 'string' ? tag.trim().replace(/^\/+|\/+$|[\[\]]/g, '') : ''
+        ).filter(tag => tag.length > 0);
+        
+        fd.append("tags", JSON.stringify(sanitizedTags));
+      }
+
+      // Add amenities - Sanitize each amenity to remove any unwanted characters
       if (amenities.length > 0) {
-        fd.append("amenities", JSON.stringify(amenities));
+        const sanitizedAmenities = amenities.map(amenity => 
+          typeof amenity === 'string' ? amenity.trim().replace(/^\/+|\/+$/g, '') : ''
+        ).filter(amenity => amenity.length > 0);
+        fd.append("amenities", JSON.stringify(sanitizedAmenities));
       }
 
       // Add attributes
@@ -322,18 +350,26 @@ const handleStateChange = (stateId) => {
         fd.append("attributes", JSON.stringify(attributeValues));
       }
 
-      // Add owner information if available
+      // Add owner information - Using a better approach for nested data
+      const ownerData = {};
       if (values.owner) {
-        Object.entries(values.owner).forEach(([k, v]) => {
-          if (v != null) {
-            fd.append(`owner[${k}]`, v);
-          }
-        });
+        // Use proper field access for nested form data
+        if (values.owner.name) ownerData.name = values.owner.name;
+        if (values.owner.phone) ownerData.phone = values.owner.phone;
+        if (values.owner.email) ownerData.email = values.owner.email;
+        if (values.owner.isFeatured !== undefined) ownerData.isFeatured = values.owner.isFeatured;
+        
+        // Only append if we have owner data
+        if (Object.keys(ownerData).length > 0) {
+          fd.append("owner", JSON.stringify(ownerData));
+        }
       }
 
       // Add hours information if available
       if (values.hours) {
         const formattedHours = {};
+        
+        // Process each day's hours
         Object.entries(values.hours).forEach(([day, times]) => {
           if (times?.open && times?.close) {
             formattedHours[day] = {
@@ -342,18 +378,26 @@ const handleStateChange = (stateId) => {
             };
           }
         });
-        fd.append("hours", JSON.stringify(formattedHours));
+        
+        // Only append if we have hours data
+        if (Object.keys(formattedHours).length > 0) {
+          fd.append("hours", JSON.stringify(formattedHours));
+          console.log("Saving hours data:", formattedHours);
+        }
       }
 
-      // images: data URLs → blobs, URLs → JSON
+      // Handle images: data URLs → blobs, URLs → JSON
       const dataUrls = images.filter((i) => i && i.startsWith("data:"));
       const urls = images.filter((i) => i && !i.startsWith("data:") && i.trim());
-      if (urls.length) fd.append("imageUrls", JSON.stringify(urls));
+      
+      if (urls.length) {
+        fd.append("imageUrls", JSON.stringify(urls));
+      }
+      
       for (let i = 0; i < dataUrls.length; i++) {
         const blob = await fetch(dataUrls[i]).then((r) => r.blob());
         fd.append("images", blob, `img${i}.jpg`);
       }
-      fd.append("replaceImages", editingListingId ? "false" : "true");
 
       const method = editingListingId ? "put" : "post";
       const url = editingListingId
@@ -368,9 +412,10 @@ const handleStateChange = (stateId) => {
         amenities,
         attributeValues,
         images: images.length,
+        hours: values.hours ? Object.keys(values.hours).length : 0
       });
 
-      await axios({
+      const response = await axios({
         method,
         url,
         data: fd,
@@ -381,8 +426,10 @@ const handleStateChange = (stateId) => {
       });
 
       notification.success({
-        message: `Listing ${editingListingId ? "updated" : "created"}!`,
+        message: `Listing ${editingListingId ? "updated" : "created"} successfully!`,
+        description: `${values.name} has been ${editingListingId ? "updated" : "created"}.`,
       });
+      
       resetForm();
       fetchListings();
       setShowForm(false);
@@ -390,42 +437,61 @@ const handleStateChange = (stateId) => {
       console.error("Error creating/updating listing:", err);
       notification.error({
         message: "Error",
-        description: err.response?.data?.message || err.message,
+        description: err.response?.data?.message || err.message || "Failed to save listing",
       });
     } finally {
       setFormLoading(false);
     }
   };
 
+  // Fix the handleEdit function to correctly handle hours
   const handleEdit = (listing) => {
     setEditingListingId(listing._id);
+    
+    // Reset form first to clear any previous values
+    form.resetFields();
 
     // Set form values for basic fields
     form.setFieldsValue({
       name: listing.name,
       category: listing.category._id,
-      price: listing.price,
-      rating: listing.rating,
-      description: listing.description,
+      price: listing.price || 0,
+      rating: listing.rating || 4.5,
+      description: listing.description || '',
       isFeatured: listing.isFeatured || false,
-      contactPhone: listing.contactPhone,
-      contactEmail: listing.contactEmail,
-      website: listing.website,
+      contactPhone: listing.contactPhone || '',
+      contactEmail: listing.contactEmail || '',
+      website: listing.website || '',
       tags: listing.tags || [],
     });
+
+    // Set owner information if available
+    if (listing.owner) {
+      console.log("Loading owner data:", listing.owner);
+      // For proper nesting in antd Form
+      form.setFieldsValue({
+        owner: {
+          name: listing.owner.name || '',
+          phone: listing.owner.phone || '',
+          email: listing.owner.email || '',
+          isFeatured: listing.owner.isFeatured || false,
+        }
+      });
+    }
 
     // Parse location for country, state, city, area
     if (listing.location) {
       const locationParts = listing.location.split(",").map((part) =>
         part.trim()
       );
-      const city = locationParts[0];
-      const area = locationParts.length > 3 ? locationParts[1] : "";
+      const city = locationParts[0] || '';
+      const area = locationParts.length > 3 ? locationParts[1] : '';
 
       // Find the country by name
       const country = countries.find(
         (c) => c.name === locationParts[locationParts.length - 1]
       );
+      
       if (country) {
         setSelectedCountry(country.id);
         form.setFieldsValue({ country: country.id });
@@ -440,6 +506,7 @@ const handleStateChange = (stateId) => {
         const state = statesInCountry.find(
           (s) => s.name === locationParts[locationParts.length - 2]
         );
+        
         if (state) {
           setSelectedState(state.id);
           form.setFieldsValue({ state: state.id });
@@ -457,18 +524,30 @@ const handleStateChange = (stateId) => {
       }
     }
 
-    // Set images
-    setImages(
-      listing.images && listing.images.length > 0 ? listing.images : [""]
-    );
+    // Set images (ensure we have at least one empty string for UI)
+    const listingImages = (listing.images && listing.images.length > 0) 
+      ? listing.images 
+      : [''];
+      
+    setImages(listingImages);
     setActiveImagePreview(0);
 
-    // Set amenities
-    setAmenities(listing.amenities || []);
+    // Set amenities - clean them during loading to prevent issues
+    if (listing.amenities && Array.isArray(listing.amenities)) {
+      const cleanAmenities = listing.amenities.map(amenity => 
+        typeof amenity === 'string' ? amenity.trim().replace(/^\/+|\/+$/g, '') : ''
+      ).filter(amenity => amenity.length > 0);
+      setAmenities(cleanAmenities);
+    } else {
+      setAmenities([]);
+    }
 
     // Set business hours if available
     if (listing.hours) {
+      console.log("Loading hours data:", listing.hours);
       const hours = {};
+      
+      // Process each day's hours from the listing data
       Object.keys(listing.hours).forEach((day) => {
         const dayHours = listing.hours[day];
         if (dayHours?.open && dayHours?.close) {
@@ -478,18 +557,9 @@ const handleStateChange = (stateId) => {
           };
         }
       });
-      form.setFieldValue("hours", hours);
-    }
-
-    // Set owner information
-    if (listing.owner) {
-      form.setFieldsValue({
-        "owner.name": listing.owner.name,
-        "owner.phone": listing.owner.phone,
-        "owner.email": listing.owner.email,
-        "owner.image": listing.owner.image,
-        "owner.isFeatured": listing.owner.isFeatured,
-      });
+      
+      // Set the hours in the form
+      form.setFieldsValue({ hours });
     }
 
     // Set dynamic attributes
@@ -566,9 +636,9 @@ const handleStateChange = (stateId) => {
     <Card
       key={listing._id}
       hoverable
-      className="overflow-hidden"
+      className="overflow-hidden h-full flex flex-col"
       cover={
-        <div className="h-48 overflow-hidden">
+        <div className="h-40 sm:h-48 overflow-hidden">
           {listing.images && listing.images.length > 0 ? (
             <img
               alt={listing.name}
@@ -608,14 +678,14 @@ const handleStateChange = (stateId) => {
       <div className="mb-2">
         <Tag color="blue">{getCategoryName(listing.category._id)}</Tag>
       </div>
-      <h3 className="font-semibold text-lg mb-1 text-blue-700">
+      <h3 className="font-semibold text-lg mb-1 text-blue-700 line-clamp-1">
         {listing.name}
       </h3>
       <div className="flex items-center text-gray-500 mb-1">
-        <FiMapPin size={14} className="mr-1" />
-        <span className="text-sm">{listing.location}</span>
+        <FiMapPin size={14} className="mr-1 flex-shrink-0" />
+        <span className="text-sm line-clamp-1">{listing.location}</span>
       </div>
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mt-auto">
         <div className="font-semibold text-blue-600">₹{listing.price}</div>
         <div className="flex items-center">
           <FiStar size={14} className="text-yellow-500 mr-1" />
@@ -629,7 +699,7 @@ const handleStateChange = (stateId) => {
   const renderListItem = (listing) => (
     <Card key={listing._id} className="mb-4">
       <div className="flex flex-col md:flex-row">
-        <div className="md:w-1/4 h-40 md:h-auto mr-4 mb-4 md:mb-0 overflow-hidden">
+        <div className="w-full md:w-1/4 h-40 md:h-auto mb-4 md:mb-0 md:mr-4 overflow-hidden">
           {listing.images && listing.images.length > 0 ? (
             <img
               alt={listing.name}
@@ -648,7 +718,7 @@ const handleStateChange = (stateId) => {
         </div>
 
         <div className="flex-1">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
             <div>
               <Tag color="blue" className="mb-2">
                 {getCategoryName(listing.category._id)}
@@ -704,26 +774,28 @@ const handleStateChange = (stateId) => {
     <div className="min-h-screen bg-gray-50">
       {/* Admin Header */}
       <div className="bg-blue-800 text-white p-4 shadow-md">
-        <div className="container mx-auto flex justify-between items-center">
-          <h1 className="text-2xl font-bold">ListyGo Admin</h1>
-          <div className="flex items-center gap-4">
-            <span>{localStorage.getItem("userName") || "Admin"}</span>
-            <button
-              className="px-3 py-1 bg-blue-700 hover:bg-blue-900 rounded"
-              onClick={() => {
-                localStorage.removeItem("token");
-                localStorage.removeItem("isAuthenticated");
-                localStorage.removeItem("userRole");
-                navigate("/admin/login");
-              }}
-            >
-              Logout
-            </button>
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center flex-wrap gap-2">
+            <h1 className="text-2xl font-bold">ListyGo Admin</h1>
+            <div className="flex items-center gap-4">
+              <span>{localStorage.getItem("userName") || "Admin"}</span>
+              <button
+                className="px-3 py-1 bg-blue-700 hover:bg-blue-900 rounded"
+                onClick={() => {
+                  localStorage.removeItem("token");
+                  localStorage.removeItem("isAuthenticated");
+                  localStorage.removeItem("userRole");
+                  navigate("/admin/login");
+                }}
+              >
+                Logout
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto px-4 py-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">
@@ -1055,110 +1127,163 @@ const handleStateChange = (stateId) => {
                 </Form.Item>
               </TabPane>
 
-              <TabPane tab="Amenities" key="amenities">
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Input
-                      placeholder="Add new amenity"
-                      value={newAmenity}
-                      onChange={(e) => setNewAmenity(e.target.value)}
-                      onPressEnter={() => {
-                        if (newAmenity.trim()) {
-                          setAmenities([...amenities, newAmenity.trim()]);
-                          setNewAmenity("");
-                        }
-                      }}
-                    />
-                    <Button
-                      type="primary"
-                      icon={<FiPlus />}
-                      onClick={() => {
-                        if (newAmenity.trim()) {
-                          setAmenities([...amenities, newAmenity.trim()]);
-                          setNewAmenity("");
-                        }
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      Add
-                    </Button>
-                  </div>
+              <TabPane 
+  tab={
+    <span className="flex items-center gap-2">
+      <FiList /> Amenities
+    </span>
+  } 
+  key="amenities"
+>
+  <Card className="shadow-sm bg-white">
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-4">
+        <Input
+          placeholder="Add new amenity"
+          value={newAmenity}
+          onChange={(e) => setNewAmenity(e.target.value)}
+          onPressEnter={() => {
+            if (newAmenity.trim()) {
+              // Sanitize the amenity before adding
+              const sanitizedAmenity = newAmenity.trim().replace(/^\/+|\/+$/g, '');
+              if (!amenities.some(a => a.toLowerCase() === sanitizedAmenity.toLowerCase())) {
+                setAmenities([...amenities, sanitizedAmenity]);
+              }
+              setNewAmenity("");
+            }
+          }}
+          prefix={<FiPlus className="text-gray-400" />}
+        />
+        <Button
+          type="primary"
+          icon={<FiPlus />}
+          onClick={() => {
+            if (newAmenity.trim()) {
+              // Sanitize the amenity before adding
+              const sanitizedAmenity = newAmenity.trim().replace(/^\/+|\/+$/g, '');
+              if (!amenities.some(a => a.toLowerCase() === sanitizedAmenity.toLowerCase())) {
+                setAmenities([...amenities, sanitizedAmenity]);
+              }
+              setNewAmenity("");
+            }
+          }}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          Add
+        </Button>
+      </div>
 
-                  <div className="mb-2">
-                    <h4 className="font-medium mb-2">Current Amenities</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {amenities.map((amenity, index) => (
-                        <Tag
-                          key={index}
-                          closable
-                          onClose={() => {
-                            const newAmenities = [...amenities];
-                            newAmenities.splice(index, 1);
-                            setAmenities(newAmenities);
-                          }}
-                          className="py-1 px-3"
-                        >
-                          {amenity}
-                        </Tag>
-                      ))}
-                      {amenities.length === 0 && (
-                        <Typography.Text type="secondary">
-                          No amenities added yet
-                        </Typography.Text>
-                      )}
-                    </div>
-                  </div>
+      <div className="mb-2 bg-blue-50 p-4 rounded-lg">
+        <h4 className="font-medium mb-2 flex items-center text-gray-700">
+          <FiCheck className="mr-2 text-blue-600" /> Current Amenities
+        </h4>
+        <div className="flex flex-wrap gap-2">
+          {amenities.map((amenity, index) => {
+            // Clean any existing amenities
+            const cleanAmenity = amenity.replace(/^\/+|\/+$/g, '').trim();
+            return (
+              <Tag
+                key={index}
+                closable
+                onClose={() => {
+                  const newAmenities = [...amenities];
+                  newAmenities.splice(index, 1);
+                  setAmenities(newAmenities);
+                }}
+                className="py-1.5 px-3 bg-white border border-blue-200 text-blue-700 flex items-center rounded-md"
+              >
+                {cleanAmenity}
+              </Tag>
+            );
+          })}
+          {amenities.length === 0 && (
+            <Typography.Text type="secondary" className="italic">
+              No amenities added yet
+            </Typography.Text>
+          )}
+        </div>
+      </div>
 
-                  <Divider />
+      <Divider className="my-5">
+        <span className="text-gray-500 text-sm flex items-center">
+          <FiList className="mr-2" /> POPULAR AMENITIES
+        </span>
+      </Divider>
 
-                  <h4 className="font-medium mb-2">Common Amenities</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      "WiFi",
-                      "Parking",
-                      "Air Conditioning",
-                      "TV",
-                      "Pool",
-                      "Gym",
-                      "Restaurant",
-                    ].map((item) => (
-                      <Tag
-                        key={item}
-                        className="py-1 px-3 cursor-pointer"
-                        onClick={() => {
-                          if (!amenities.includes(item)) {
-                            setAmenities([...amenities, item]);
-                          }
-                        }}
-                      >
-                        {item} <FiPlus size={12} />
-                      </Tag>
-                    ))}
-                  </div>
-                </div>
-              </TabPane>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {[
+          { name: "WiFi", icon: <FiWifi /> },
+          { name: "Parking", icon: <FiSquare /> },
+          { name: "Air Conditioning", icon: <FiWind /> },
+          { name: "TV", icon: <FiMonitor /> },
+          { name: "Pool", icon: <FiDroplet /> },
+          { name: "Gym", icon: <FiActivity /> },
+          { name: "Restaurant", icon: <FiShoppingBag /> },
+          { name: "Pet Friendly", icon: <FiHeart /> },
+        ].map((item) => {
+          const isAdded = amenities.some(
+            a => a.toLowerCase() === item.name.toLowerCase()
+          );
+          
+          return (
+            <Tag
+              key={item.name}
+              className={`py-2 px-3 cursor-pointer flex items-center justify-between hover:bg-blue-50 transition-colors ${
+                isAdded ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50'
+              }`}
+              onClick={() => {
+                if (!amenities.some(a => a.toLowerCase() === item.name.toLowerCase())) {
+                  setAmenities([...amenities, item.name]);
+                } else {
+                  // If already added, remove it
+                  setAmenities(
+                    amenities.filter(a => a.toLowerCase() !== item.name.toLowerCase())
+                  );
+                }
+              }}
+            >
+              <span className="flex items-center">
+                <span className="mr-2">{item.icon}</span>
+                {item.name}
+              </span>
+              {isAdded && <FiCheck className="ml-2 text-green-500" />}
+            </Tag>
+          );
+        })}
+      </div>
+    </div>
+  </Card>
+</TabPane>
 
               <TabPane tab="Contact & Owner" key="contact">
-                <Card title="Owner Information" className="mb-4">
-                  <Form.Item name="owner.name" label="Owner/Host Name">
+                {/* <Card title="Owner Information" className="mb-4">
+                  <Form.Item 
+                    name="owner.name" 
+                    label="Owner/Host Name"
+                  >
                     <Input
                       prefix={<FiUser />}
                       placeholder="Name of owner/host"
                     />
                   </Form.Item>
 
-                  <Form.Item name="owner.phone" label="Contact Phone">
-                    <Input prefix={<FiPhone />} placeholder="Phone number" />
+                  <Form.Item 
+                    name="owner.phone" 
+                    label="Contact Phone"
+                  >
+                    <Input 
+                      prefix={<FiPhone />} 
+                      placeholder="Phone number" 
+                    />
                   </Form.Item>
 
-                  <Form.Item name="owner.email" label="Contact Email">
-                    <Input prefix={<FiMail />} placeholder="Email address" />
-                  </Form.Item>
-
-                  <Form.Item name="owner.image" label="Owner Image URL">
-                    <Input
-                      prefix={<FiImage />}
-                      placeholder="URL to owner/host image"
+                  <Form.Item 
+                    name="owner.email" 
+                    label="Contact Email"
+                  >
+                    <Input 
+                      prefix={<FiMail />} 
+                      placeholder="Email address" 
                     />
                   </Form.Item>
 
@@ -1169,62 +1294,188 @@ const handleStateChange = (stateId) => {
                   >
                     <Switch />
                   </Form.Item>
-                </Card>
+                </Card> */}
 
-                <Card title="Additional Contact Info">
-                  <Form.Item name="website" label="Website">
-                    <Input prefix={<FiGlobe />} placeholder="Website URL" />
-                  </Form.Item>
-
-                  <Form.Item name="contactPhone" label="Public Contact Phone">
+                <Card title="Owner Contact Info">
+                  <Form.Item 
+                    name="contactPhone" 
+                    label="Contact Phone"
+                  >
                     <Input
                       prefix={<FiPhone />}
-                      placeholder="Public phone number"
+                      placeholder="phone number"
                     />
                   </Form.Item>
 
-                  <Form.Item name="contactEmail" label="Public Contact Email">
+                  <Form.Item 
+                    name="contactEmail" 
+                    label="Contact Email"
+                  >
                     <Input
                       prefix={<FiMail />}
-                      placeholder="Public email address"
+                      placeholder="email address"
+                    />
+                  </Form.Item>
+
+                  <Form.Item 
+                    name="website" 
+                    label="Website"
+                  >
+                    <Input 
+                      prefix={<FiGlobe />} 
+                      placeholder="Website URL" 
                     />
                   </Form.Item>
                 </Card>
               </TabPane>
 
+              {/* Update the Hours TabPane with autofill functionality */}
               <TabPane tab="Hours" key="hours">
                 <Card title="Business Hours">
+                  <div className="mb-4">
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <Button 
+                        type="default" 
+                        icon={<FiClock />} 
+                        onClick={() => {
+                          // Standard business hours (9 AM to 5 PM)
+                          const businessHours = {
+                            monday: { open: dayjs('09:00', 'HH:mm'), close: dayjs('17:00', 'HH:mm') },
+                            tuesday: { open: dayjs('09:00', 'HH:mm'), close: dayjs('17:00', 'HH:mm') },
+                            wednesday: { open: dayjs('09:00', 'HH:mm'), close: dayjs('17:00', 'HH:mm') },
+                            thursday: { open: dayjs('09:00', 'HH:mm'), close: dayjs('17:00', 'HH:mm') },
+                            friday: { open: dayjs('09:00', 'HH:mm'), close: dayjs('17:00', 'HH:mm') },
+                            saturday: { open: dayjs('10:00', 'HH:mm'), close: dayjs('15:00', 'HH:mm') },
+                            sunday: { open: null, close: null },
+                          };
+                          form.setFieldsValue({ hours: businessHours });
+                        }}
+                      >
+                        Standard Hours (9-5)
+                      </Button>
+                      
+                      <Button 
+                        type="default" 
+                        onClick={() => {
+                          // Extended hours (8 AM to 8 PM)
+                          const extendedHours = {
+                            monday: { open: dayjs('08:00', 'HH:mm'), close: dayjs('20:00', 'HH:mm') },
+                            tuesday: { open: dayjs('08:00', 'HH:mm'), close: dayjs('20:00', 'HH:mm') },
+                            wednesday: { open: dayjs('08:00', 'HH:mm'), close: dayjs('20:00', 'HH:mm') },
+                            thursday: { open: dayjs('08:00', 'HH:mm'), close: dayjs('20:00', 'HH:mm') },
+                            friday: { open: dayjs('08:00', 'HH:mm'), close: dayjs('20:00', 'HH:mm') },
+                            saturday: { open: dayjs('09:00', 'HH:mm'), close: dayjs('18:00', 'HH:mm') },
+                            sunday: { open: dayjs('10:00', 'HH:mm'), close: dayjs('16:00', 'HH:mm') },
+                          };
+                          form.setFieldsValue({ hours: extendedHours });
+                        }}
+                      >
+                        Extended Hours (8-8)
+                      </Button>
+                      
+                      <Button 
+                        type="default" 
+                        onClick={() => {
+                          // 24/7 operation
+                          const allDayHours = {
+                            monday: { open: dayjs('00:00', 'HH:mm'), close: dayjs('23:59', 'HH:mm') },
+                            tuesday: { open: dayjs('00:00', 'HH:mm'), close: dayjs('23:59', 'HH:mm') },
+                            wednesday: { open: dayjs('00:00', 'HH:mm'), close: dayjs('23:59', 'HH:mm') },
+                            thursday: { open: dayjs('00:00', 'HH:mm'), close: dayjs('23:59', 'HH:mm') },
+                            friday: { open: dayjs('00:00', 'HH:mm'), close: dayjs('23:59', 'HH:mm') },
+                            saturday: { open: dayjs('00:00', 'HH:mm'), close: dayjs('23:59', 'HH:mm') },
+                            sunday: { open: dayjs('00:00', 'HH:mm'), close: dayjs('23:59', 'HH:mm') },
+                          };
+                          form.setFieldsValue({ hours: allDayHours });
+                        }}
+                      >
+                        24/7 Hours
+                      </Button>
+                      
+                      <Button 
+                        type="default"
+                        danger
+                        onClick={() => {
+                          // Clear all hours
+                          const emptyHours = {
+                            monday: { open: null, close: null },
+                            tuesday: { open: null, close: null },
+                            wednesday: { open: null, close: null },
+                            thursday: { open: null, close: null },
+                            friday: { open: null, close: null },
+                            saturday: { open: null, close: null },
+                            sunday: { open: null, close: null },
+                          };
+                          form.setFieldsValue({ hours: emptyHours });
+                        }}
+                      >
+                        Clear All
+                      </Button>
+                    </div>
+                    
+                    <div className="mb-3">
+                      <Text type="secondary">
+                        Quick tip: You can also set custom hours for specific days below
+                      </Text>
+                    </div>
+                  </div>
+                  
                   {[
-                    "monday",
-                    "tuesday",
-                    "wednesday",
-                    "thursday",
-                    "friday",
-                    "saturday",
-                    "sunday",
-                  ].map((day) => (
-                    <Form.Item
-                      label={day.charAt(0).toUpperCase() + day.slice(1)}
-                      key={day}
-                    >
-                      <Input.Group compact>
-                        <Form.Item name={["hours", day, "open"]} noStyle>
-                          <TimePicker
-                            format="HH:mm"
-                            placeholder="Opening time"
-                            style={{ width: "50%" }}
-                          />
-                        </Form.Item>
-                        <Form.Item name={["hours", day, "close"]} noStyle>
-                          <TimePicker
-                            format="HH:mm"
-                            placeholder="Closing time"
-                            style={{ width: "50%" }}
-                          />
-                        </Form.Item>
-                      </Input.Group>
-                    </Form.Item>
-                  ))}
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday"
+].map((day) => (
+  <Form.Item
+    label={
+      <div className="flex justify-between w-full">
+        <span>{day.charAt(0).toUpperCase() + day.slice(1)}</span>
+        <Button 
+          type="link" 
+          size="small"
+          onClick={() => {
+            // Apply current day's time to all weekdays
+            const dayValues = form.getFieldValue(['hours', day]);
+            if (dayValues?.open && dayValues?.close) {
+              const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+              const updatedHours = {};
+              weekdays.forEach(weekday => {
+                updatedHours[weekday] = {
+                  open: dayValues.open,
+                  close: dayValues.close
+                };
+              });
+              form.setFieldsValue({ hours: { ...form.getFieldValue('hours'), ...updatedHours } });
+            }
+          }}
+        >
+          Apply to weekdays
+        </Button>
+      </div>
+    }
+    key={day}
+  >
+    <Input.Group compact>
+      <Form.Item name={["hours", day, "open"]} noStyle>
+        <TimePicker
+          format="HH:mm"
+          placeholder="Opening time"
+          style={{ width: "50%" }}
+        />
+      </Form.Item>
+      <Form.Item name={["hours", day, "close"]} noStyle>
+        <TimePicker
+          format="HH:mm"
+          placeholder="Closing time"
+          style={{ width: "50%" }}
+        />
+      </Form.Item>
+    </Input.Group>
+  </Form.Item>
+))}
                 </Card>
               </TabPane>
 
@@ -1435,7 +1686,7 @@ const handleStateChange = (stateId) => {
           <div
             className={
               viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6"
                 : "space-y-4"
             }
           >

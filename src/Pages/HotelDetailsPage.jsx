@@ -3,106 +3,128 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Row, Col, Card, Button, Spin, Typography, Tag, Form, 
-  DatePicker, InputNumber, Carousel, Rate, Image, Divider, Empty, 
-  Result, Badge, Space, Breadcrumb, Avatar, Tooltip, message
+  Input, Carousel, Rate, Image, Divider, Empty, 
+  Result, Badge, Space, Breadcrumb, Avatar, message,
+  Tabs
 } from 'antd';
 import {
   ArrowLeftOutlined,
   EnvironmentOutlined,
-  CalendarOutlined,
+  TagOutlined, 
   HomeOutlined,
-  CarOutlined, 
   TeamOutlined,
   InfoCircleOutlined,
   FullscreenOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  PhoneOutlined,
+  MailOutlined,
+  GlobalOutlined
 } from '@ant-design/icons';
 import { MdBed, MdBathtub, MdWifi, MdAcUnit, MdTv, MdKitchen, MdPool, MdFitnessCenter } from 'react-icons/md';
-import dayjs from 'dayjs';
+import { FiMaximize2, FiClock } from 'react-icons/fi';
 
 const { Title, Text, Paragraph } = Typography;
+const { TabPane } = Tabs;
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const HotelDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [hotel, setHotel] = useState(null);
+  const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [form] = Form.useForm();
   const carouselRef = useRef(null);
+  const [relatedListings, setRelatedListings] = useState([]);
+  const [mapLoading, setMapLoading] = useState(true);
+  const [mapError, setMapError] = useState(false);
+  const [coordinates, setCoordinates] = useState(null);
 
   useEffect(() => {
-    const fetchHotel = async () => {
+    const fetchListing = async () => {
       try {
         setLoading(true);
         const response = await axios.get(`${API_URL}/listings/${id}`);
         
         if (response.data.success) {
-          setHotel(response.data.data);
+          setListing(response.data.data);
+          // After getting listing, fetch related listings from same category
+          if (response.data.data.category && response.data.data.category._id) {
+            fetchRelatedListings(response.data.data.category._id);
+          }
+          
+          // Get coordinates for the location if available
+          if (response.data.data.location) {
+            fetchCoordinates(response.data.data.location);
+          }
         } else {
-          setError('Failed to fetch hotel details');
+          setError('Failed to fetch listing details');
         }
       } catch (err) {
-        console.error('Error fetching hotel details:', err);
-        setError('An error occurred while fetching hotel details. Please try again later.');
+        console.error('Error fetching listing details:', err);
+        setError('An error occurred while fetching listing details. Please try again later.');
       } finally {
         setLoading(false);
       }
     };
 
     if (id) {
-      fetchHotel();
+      fetchListing();
     }
   }, [id]);
 
-  // Handle booking
-  const handleBookNow = async (values) => {
+  const fetchCoordinates = async (locationString) => {
     try {
-      const { checkIn, checkOut, guests } = values;
+      setMapLoading(true);
+      // Using OpenStreetMap Nominatim API for geocoding (free and doesn't require API key)
+      const encodedLocation = encodeURIComponent(locationString);
+      const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedLocation}`);
       
-      if (!checkIn || !checkOut) {
-        message.warning('Please select check-in and check-out dates');
-        return;
+      if (response.data && response.data.length > 0) {
+        const { lat, lon } = response.data[0];
+        setCoordinates({ lat, lng: lon });
+      } else {
+        setMapError(true);
       }
-      
-      // Format dates for API
-      const checkInFormatted = checkIn.format('YYYY-MM-DD');
-      const checkOutFormatted = checkOut.format('YYYY-MM-DD');
-      
-      // Calculate total price
-      const nights = checkOut.diff(checkIn, 'day');
-      const totalPrice = nights * hotel.price;
-      
-      message.success('Booking details confirmed. Redirecting to payment...');
-      
-      // Navigate to booking page with data
-      navigate(`/booking/${id}`, { 
-        state: { 
-          checkInDate: checkInFormatted, 
-          checkOutDate: checkOutFormatted, 
-          guests,
-          nights,
-          totalPrice,
-          hotelName: hotel.name,
-          hotelPrice: hotel.price,
-          hotelImage: Array.isArray(hotel.images) && hotel.images.length > 0 ? hotel.images[0] : null
-        } 
-      });
     } catch (error) {
-      message.error('Failed to process booking request');
-      console.error('Booking error:', error);
+      console.error('Error fetching coordinates:', error);
+      setMapError(true);
+    } finally {
+      setMapLoading(false);
+    }
+  };
+
+  const fetchRelatedListings = async (categoryId) => {
+    try {
+      const response = await axios.get(`${API_URL}/listings?category=${categoryId}&limit=3&exclude=${id}`);
+      if (response.data.success) {
+        setRelatedListings(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching related listings:', error);
+    }
+  };
+
+  // Handle contact form submission
+  const handleContact = async (values) => {
+    try {
+      // This is just a placeholder - implement actual contact logic
+      message.success('Your inquiry has been sent successfully!');
+      form.resetFields();
+    } catch (error) {
+      message.error('Failed to process request');
+      console.error('Contact error:', error);
     }
   };
 
   // Prepare images
   const getImages = () => {
-    if (!hotel) return [];
-    return Array.isArray(hotel.images) && hotel.images.length > 0 
-      ? hotel.images 
-      : (hotel.image ? [hotel.image] : []);
+    if (!listing) return [];
+    return Array.isArray(listing.images) && listing.images.length > 0 
+      ? listing.images 
+      : (listing.image ? [listing.image] : []);
   };
 
   const images = getImages();
@@ -115,42 +137,152 @@ const HotelDetailsPage = () => {
   };
 
   const getAmenityIcon = (amenity) => {
-    const iconProps = { size: 18 };
-    switch (amenity.toLowerCase()) {
-      case 'wifi':
-        return <MdWifi {...iconProps} />;
-      case 'air conditioning':
-        return <MdAcUnit {...iconProps} />;
-      case 'tv':
-        return <MdTv {...iconProps} />;
-      case 'kitchen':
-        return <MdKitchen {...iconProps} />;
-      case 'pool':
-        return <MdPool {...iconProps} />;
-      case 'gym':
-        return <MdFitnessCenter {...iconProps} />;
-      default:
-        return <CheckCircleOutlined />;
+    if (!amenity) return <CheckCircleOutlined />;
+    
+    // Clean amenity name first
+    const sanitizedAmenity = typeof amenity === 'string' 
+      ? amenity.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
+      : '';
+    
+    const iconSize = 20;
+    
+    // Map common amenities to icons
+    const amenityIcons = {
+      'wifi': <MdWifi size={iconSize} />,
+      'free wifi': <MdWifi size={iconSize} />,
+      'air conditioning': <MdAcUnit size={iconSize} />,
+      'ac': <MdAcUnit size={iconSize} />,
+      'tv': <MdTv size={iconSize} />,
+      'television': <MdTv size={iconSize} />,
+      'kitchen': <MdKitchen size={iconSize} />,
+      'pool': <MdPool size={iconSize} />,
+      'swimming pool': <MdPool size={iconSize} />,
+      'gym': <MdFitnessCenter size={iconSize} />,
+      'fitness center': <MdFitnessCenter size={iconSize} />,
+      'parking': <EnvironmentOutlined style={{ fontSize: iconSize }} />,
+      'restaurant': <InfoCircleOutlined style={{ fontSize: iconSize }} />,
+      'pet friendly': <InfoCircleOutlined style={{ fontSize: iconSize }} />
+    };
+
+    return amenityIcons[sanitizedAmenity] || <CheckCircleOutlined style={{ fontSize: iconSize - 2 }} />;
+  };
+
+  // Format business hours display
+  const formatBusinessHours = () => {
+    if (!listing || !listing.hours) return null;
+    
+    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const formattedHours = [];
+    
+    // Check if we have any hours data
+    const hasHoursData = Object.values(listing.hours).some(dayHours => 
+      dayHours && dayHours.open && dayHours.close
+    );
+    
+    if (!hasHoursData) return null;
+    
+    // Format each day's hours
+    for (const day of days) {
+      if (listing.hours[day] && listing.hours[day].open && listing.hours[day].close) {
+        // Format time to be more readable
+        const formatTime = (timeStr) => {
+          // If it's already in a readable format, return as is
+          if (timeStr.includes(':')) {
+            const [hours, minutes] = timeStr.split(':');
+            const h = parseInt(hours);
+            return `${h % 12 === 0 ? 12 : h % 12}:${minutes} ${h >= 12 ? 'PM' : 'AM'}`;
+          }
+          return timeStr;
+        };
+        
+        formattedHours.push({
+          day: day.charAt(0).toUpperCase() + day.slice(1),
+          hours: `${formatTime(listing.hours[day].open)} - ${formatTime(listing.hours[day].close)}`
+        });
+      }
     }
+    
+    return formattedHours.length > 0 ? formattedHours : null;
+  };
+
+  const businessHours = formatBusinessHours();
+
+  const MapComponent = ({ coordinates, name, location }) => {
+    const [mapHeight] = useState(300); // Fixed height for the map
+    
+    // Create a simpler and more reliable OpenStreetMap implementation
+    if (mapLoading) {
+      return (
+        <div className="h-[300px] bg-gray-100 flex items-center justify-center">
+          <Spin tip="Loading map..." />
+        </div>
+      );
+    }
+    
+    if (mapError || !coordinates) {
+      return (
+        <div className="h-[300px] bg-gray-100 flex flex-col items-center justify-center">
+          <Text type="secondary">Unable to load map for this location</Text>
+          {location && (
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="mt-2 text-blue-600 hover:underline"
+            >
+              View on Google Maps
+            </a>
+          )}
+        </div>
+      );
+    }
+    
+    // Use OpenStreetMap with proper zoom level and marker
+    const openStreetMapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(coordinates.lng) - 0.01},${parseFloat(coordinates.lat) - 0.01},${parseFloat(coordinates.lng) + 0.01},${parseFloat(coordinates.lat) + 0.01}&layer=mapnik&marker=${coordinates.lat},${coordinates.lng}`;
+    
+    return (
+      <div className="h-[300px] border rounded overflow-hidden">
+        <iframe
+          title="Location Map"
+          width="100%"
+          height="100%"
+          frameBorder="0"
+          scrolling="no"
+          marginHeight="0"
+          marginWidth="0"
+          src={openStreetMapUrl}
+        ></iframe>
+        <div className="py-1 text-center">
+          <a 
+            href={`https://www.openstreetmap.org/?mlat=${coordinates.lat}&mlon=${coordinates.lng}#map=15/${coordinates.lat}/${coordinates.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-blue-600 hover:underline"
+          >
+            View larger map
+          </a>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen pt-20">
-        <Spin size="large" tip="Loading hotel details..." />
+        <Spin size="large" tip="Loading listing details..." />
       </div>
     );
   }
 
-  if (error || !hotel) {
+  if (error || !listing) {
     return (
       <Result
         status="error"
         title="Something went wrong"
-        subTitle={error || "We couldn't find this hotel. It might have been removed or there was a connection error."}
+        subTitle={error || "We couldn't find this listing. It might have been removed or there was a connection error."}
         extra={
-          <Button type="primary" onClick={() => navigate('/listings')}>
-            Back to Hotels
+          <Button type="primary" onClick={() => navigate('/listings')} className="bg-blue-600 hover:bg-blue-700">
+            Back to Listings
           </Button>
         }
       />
@@ -158,7 +290,7 @@ const HotelDetailsPage = () => {
   }
 
   return (
-    <div className="bg-[#f0f7ff] pb-20  min-h-screen pt-10 px-4">
+    <div className="bg-[#f0f7ff] pb-20 min-h-screen pt-10 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Breadcrumb and Header */}
         <Row gutter={[16, 16]} className="mb-4">
@@ -170,9 +302,16 @@ const HotelDetailsPage = () => {
                 </a>
               </Breadcrumb.Item>
               <Breadcrumb.Item>
-                <a onClick={() => navigate('/listings')}>Hotels</a>
+                <a onClick={() => navigate('/listings')}>Listings</a>
               </Breadcrumb.Item>
-              <Breadcrumb.Item>{hotel.name}</Breadcrumb.Item>
+              {listing.category && (
+                <Breadcrumb.Item>
+                  <a onClick={() => navigate(`/listings?category=${listing.category._id}`)}>
+                    {listing.category.name}
+                  </a>
+                </Breadcrumb.Item>
+              )}
+              <Breadcrumb.Item>{listing.name}</Breadcrumb.Item>
             </Breadcrumb>
             
             <Button 
@@ -184,18 +323,38 @@ const HotelDetailsPage = () => {
               Back to listings
             </Button>
             
-            <Title level={2} className="mb-2">{hotel.name}</Title>
-            <Space className="mb-4">
-              <Tag icon={<EnvironmentOutlined />} color="blue">
-                {hotel.location}
-              </Tag>
-              <Rate disabled defaultValue={hotel.rating || 4.5} allowHalf className="text-sm" />
-              <Text type="secondary">{hotel.rating || 4.5} Rating</Text>
-            </Space>
+            <div className="flex justify-between items-center flex-wrap">
+              <div>
+                <Title level={2} className="mb-2">{listing.name}</Title>
+                <Space className="mb-4 flex-wrap">
+                  {listing.location && (
+                    <Tag icon={<EnvironmentOutlined />} color="blue">
+                      {listing.location}
+                    </Tag>
+                  )}
+                  {listing.category && <Tag color="purple">{listing.category.name}</Tag>}
+                  <Rate disabled defaultValue={listing.rating || 4.5} allowHalf className="text-sm" />
+                  <Text type="secondary">{listing.rating || 4.5} Rating</Text>
+                </Space>
+              </div>
+              
+              {listing.price && (
+                <Badge.Ribbon text={`₹${listing.price}`} color="blue">
+                  <Card className="mb-4 md:mb-0 bg-white shadow-sm">
+                    <div className="text-center">
+                      <Title level={4} className="mb-0">₹{listing.price}</Title>
+                      <Text type="secondary">
+                        {listing.category?.name === 'Restaurants' ? 'avg price' : ''}
+                      </Text>
+                    </div>
+                  </Card>
+                </Badge.Ribbon>
+              )}
+            </div>
           </Col>
         </Row>
 
-        {/* Image Gallery and Booking Section */}
+        {/* Image Gallery and Details Section */}
         <Row gutter={[24, 24]}>
           <Col xs={24} xl={16}>
             <Card bordered={false} className="shadow-md rounded-lg overflow-hidden">
@@ -205,7 +364,7 @@ const HotelDetailsPage = () => {
                   autoplay
                   dots={true}
                   afterChange={(current) => setActiveImage(current)}
-                  className="hotel-carousel"
+                  className="listing-carousel"
                   ref={carouselRef}
                 >
                   {images.length > 0 ? (
@@ -213,7 +372,7 @@ const HotelDetailsPage = () => {
                       <div key={index} className="h-[400px] rounded-lg overflow-hidden">
                         <img
                           src={image}
-                          alt={`${hotel.name} - View ${index + 1}`}
+                          alt={`${listing.name} - View ${index + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             e.target.onerror = null;
@@ -277,265 +436,353 @@ const HotelDetailsPage = () => {
               )}
             </Card>
             
-            {/* Hotel Details Card */}
+            {/* Listing Details Tabs */}
             <Card 
               bordered={false} 
               className="mt-6 shadow-md rounded-lg"
-              title={<Title level={4}>Hotel Details</Title>}
+              title={<Title level={4}>Listing Details</Title>}
             >
-              <Row gutter={[16, 16]} className="mb-6">
-                <Col xs={12} sm={6}>
-                  <Card className="text-center h-full bg-blue-50 border-0">
-                    <div className="flex flex-col items-center">
-                      <Avatar size={48} className="bg-blue-100 flex items-center justify-center mb-2">
-                        <MdBed size={28} className="text-blue-600" />
-                      </Avatar>
-                      <Text strong>{hotel.bedrooms || 2} Bedrooms</Text>
-                    </div>
-                  </Card>
-                </Col>
-                <Col xs={12} sm={6}>
-                  <Card className="text-center h-full bg-blue-50 border-0">
-                    <div className="flex flex-col items-center">
-                      <Avatar size={48} className="bg-blue-100 flex items-center justify-center mb-2">
-                        <MdBathtub size={28} className="text-blue-600" />
-                      </Avatar>
-                      <Text strong>{hotel.bathrooms || 2} Bathrooms</Text>
-                    </div>
-                  </Card>
-                </Col>
-                <Col xs={12} sm={6}>
-                  <Card className="text-center h-full bg-blue-50 border-0">
-                    <div className="flex flex-col items-center">
-                      <Avatar size={48} className="bg-blue-100 flex items-center justify-center mb-2">
-                        <TeamOutlined style={{ fontSize: '24px' }} className="text-blue-600" />
-                      </Avatar>
-                      <Text strong>Up to {hotel.maxGuests || 6} Guests</Text>
-                    </div>
-                  </Card>
-                </Col>
-                <Col xs={12} sm={6}>
-                  <Card className="text-center h-full bg-blue-50 border-0">
-                    <div className="flex flex-col items-center">
-                      <Avatar size={48} className="bg-blue-100 flex items-center justify-center mb-2">
-                        <CarOutlined style={{ fontSize: '24px' }} className="text-blue-600" />
-                      </Avatar>
-                      <Text strong>{hotel.parking ? 'Parking Available' : 'No Parking'}</Text>
-                    </div>
-                  </Card>
-                </Col>
-              </Row>
-              
-              <Divider orientation="left">
-                <Space>
-                  <InfoCircleOutlined />
-                  <span>Description</span>
-                </Space>
-              </Divider>
-              
-              <Paragraph className="text-gray-600">
-                {hotel.description || 'No description available.'}
-              </Paragraph>
-              
-              {/* Amenities Section */}
-              <Divider orientation="left">
-  <Space>
-    <CheckCircleOutlined />
-    <span>Amenities</span>
-  </Space>
-</Divider>
+              <Tabs defaultActiveKey="details">
+                <TabPane tab="Details" key="details">
+                  {/* Attributes Section - Dynamic for any category */}
+                  {listing.attributes && Object.keys(listing.attributes).length > 0 && (
+                    <Row gutter={[16, 16]} className="mb-6">
+                      {Object.entries(listing.attributes).map(([key, value], index) => {
+                        if (value === false) return null;
+                        
+                        let displayValue = value;
+                        if (value === true) {
+                          displayValue = 'Yes';
+                        } else if (Array.isArray(value)) {
+                          displayValue = value.join(', ');
+                        }
+                        
+                        const friendlyKey = key
+                          .replace(/([A-Z])/g, ' $1')
+                          .replace(/^./, str => str.toUpperCase());
+                          
+                        const iconMap = {
+                          bedrooms: <MdBed size={28} className="text-blue-600" />,
+                          bathrooms: <MdBathtub size={28} className="text-blue-600" />,
+                          maxGuests: <TeamOutlined style={{ fontSize: '24px' }} className="text-blue-600" />,
+                        };
+                        
+                        return (
+                          <Col xs={12} sm={6} key={key}>
+                            <Card className="text-center h-full bg-blue-50 border-0">
+                              <div className="flex flex-col items-center">
+                                <Avatar size={48} className="bg-blue-100 flex items-center justify-center mb-2">
+                                  {iconMap[key] || <InfoCircleOutlined style={{ fontSize: '24px' }} className="text-blue-600" />}
+                                </Avatar>
+                                <Text strong>{displayValue} {friendlyKey}</Text>
+                              </div>
+                            </Card>
+                          </Col>
+                        );
+                      })}
+                    </Row>
+                  )}
+                  
+                  <Divider orientation="left">
+                    <Space>
+                      <InfoCircleOutlined />
+                      <span>Description</span>
+                    </Space>
+                  </Divider>
+                  
+                  <Paragraph className="text-gray-600">
+                    {listing.description || 'No description available.'}
+                  </Paragraph>
+                  
+                  {/* Amenities Section */}
+                  <Divider orientation="left">
+                    <Space>
+                      <CheckCircleOutlined />
+                      <span>Amenities & Features</span>
+                    </Space>
+                  </Divider>
 
-<Row gutter={[16, 16]} className="pb-2">
-  {hotel.amenities && hotel.amenities.length > 0 ? (
-    hotel.amenities.map((amenity) => (
-      <Col key={amenity} xs={12} md={8} lg={6}>
-        <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg p-3 h-full">
-          <Space align="start">
-            <div className="bg-white rounded-full p-2 shadow-sm text-blue-600">
-              {getAmenityIcon(amenity)}
-            </div>
-            <Text className="text-gray-700 font-medium">
-              {amenity}
-            </Text>
-          </Space>
-        </div>
-      </Col>
-    ))
-  ) : (
-    ['WiFi', 'Air Conditioning', 'TV', 'Kitchen', 'Pool', 'Gym'].map((amenity) => (
-      <Col key={amenity} xs={12} md={8} lg={6}>
-        <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg p-3 h-full">
-          <Space align="start">
-            <div className="bg-white rounded-full p-2 shadow-sm text-blue-600">
-              {getAmenityIcon(amenity)}
-            </div>
-            <Text className="text-gray-700 font-medium">
-              {amenity}
-            </Text>
-          </Space>
-        </div>
-      </Col>
-    ))
-  )}
-</Row>
+                  <Row gutter={[16, 16]} className="pb-4">
+                    {listing.amenities && listing.amenities.length > 0 ? (
+                      listing.amenities.map((amenity, index) => {
+                        // Clean the amenity text
+                        const cleanAmenity = typeof amenity === 'string' 
+                          ? amenity.trim().replace(/^\/+|\/+$/g, '')
+                          : '';
+                          
+                        if (!cleanAmenity) return null;
+                        
+                        return (
+                          <Col key={index} xs={12} md={8} lg={6}>
+                            <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg p-3 h-full flex items-center">
+                              <div className="bg-white rounded-full p-2 shadow-sm text-blue-600 mr-3">
+                                {getAmenityIcon(cleanAmenity)}
+                              </div>
+                              <Text className="text-gray-700 font-medium">
+                                {cleanAmenity}
+                              </Text>
+                            </div>
+                          </Col>
+                        );
+                      })
+                    ) : (
+                      <Col span={24}>
+                        <Empty description="No amenities listed" />
+                      </Col>
+                    )}
+                  </Row>
+                  
+                  {/* Tags Section */}
+                  {listing.tags && listing.tags.length > 0 && (
+                    <>
+                      <Divider orientation="left">
+                        <Space>
+                          <TagOutlined />
+                          <span>Tags</span>
+                        </Space>
+                      </Divider>
+                      <div className="mb-6 flex flex-wrap gap-2">
+                        {listing.tags.map(tag => {
+                          // Clean the tag text to remove unwanted characters
+                          const cleanTag = typeof tag === 'string' 
+                            ? tag.trim().replace(/^\/+|\/+$|[\[\]]/g, '')
+                            : '';
+                            
+                          if (!cleanTag) return null;
+                          
+                          return (
+                            <Tag 
+                              key={cleanTag} 
+                              color="blue" 
+                              className="mr-0 mb-0 py-1.5 px-3 text-sm rounded-full"
+                            >
+                              {cleanTag}
+                            </Tag>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </TabPane>
+
+                {/* Hours Tab */}
+                {businessHours && businessHours.length > 0 && (
+                  <TabPane tab="Hours" key="hours" className="pb-4">
+                    <div className="bg-white rounded-lg overflow-hidden">
+                      <div className="p-4 border-b bg-blue-50">
+                        <Title level={5} className="mb-0 flex items-center">
+                          <FiClock className="mr-2 text-blue-600" /> Business Hours
+                        </Title>
+                      </div>
+                      <div className="p-4">
+                        <div className="space-y-3">
+                          {businessHours.map((item, index) => (
+                            <div 
+                              key={index} 
+                              className={`flex justify-between pb-2 ${
+                                index < businessHours.length - 1 ? 'border-b border-gray-100' : ''
+                              }`}
+                            >
+                              <Text strong className="capitalize">{item.day}</Text>
+                              <Text className="font-medium text-blue-600">{item.hours}</Text>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </TabPane>
+                )}
+
+                {/* Location Tab */}
+                <TabPane tab="Location" key="location">
+                  <div className="bg-white p-4 rounded">
+                    <Title level={5} className="mb-4">Location</Title>
+                    <div className="mb-4">
+                      <EnvironmentOutlined className="text-blue-500 mr-2" />
+                      <Text>{listing.location}</Text>
+                    </div>
+                    
+                    {/* Map component */}
+                    <MapComponent 
+                      coordinates={coordinates}
+                      name={listing.name}
+                      location={listing.location}
+                    />
+                  </div>
+                </TabPane>
+              </Tabs>
             </Card>
           </Col>
           
-          {/* Booking Card */}
+          {/* Sidebar */}
           <Col xs={24} xl={8}>
-            <div className="sticky space-y-2 top-24">
-              <Badge.Ribbon 
-                text={`₹${hotel.price}`}
-                color="blue"
+            <div className="sticky space-y-4 top-24">
+              {/* Listing Info Card */}
+              <Card 
+                bordered={false} 
+                className="shadow-md rounded-lg"
+                title={<Title level={4} className="my-0">Listing Details</Title>}
               >
-                <Card 
-                  bordered={false} 
-                  className="shadow-md rounded-lg"
-                  title={
-                    <div className="flex justify-between items-center">
-                      <Title level={4} className="my-0">Book Your Stay</Title>
+                <div className="p-1">
+                  <div className="flex justify-between items-center mb-3">
+                    <Text className="text-gray-600">Category:</Text>
+                    <Text strong>{listing.category?.name || 'Uncategorized'}</Text>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mb-3">
+                    <Text className="text-gray-600">Price:</Text>
+                    <Text strong className="text-lg text-blue-600">₹{listing.price || 'Contact for pricing'}</Text>
+                  </div>
+                  
+                  <div className="flex justify-between items-center mb-3">
+                    <Text className="text-gray-600">Rating:</Text>
+                    <Space>
+                      <Rate disabled defaultValue={listing.rating || 4.5} allowHalf className="text-sm" />
+                      <Text type="secondary">{listing.rating || 4.5}</Text>
+                    </Space>
+                  </div>
+                  
+                  {listing.isFeatured && (
+                    <div className="mb-3">
+                      <Tag color="gold" className="w-full text-center py-1">Featured Listing</Tag>
                     </div>
-                  }
-                >
+                  )}
+                  
+                  <Divider className="my-4" />
+                  
+                  <div className="mb-4">
+                    <Text strong className="block mb-2">Quick Actions</Text>
+                    <Button 
+                      type="primary" 
+                      block 
+                      className="bg-blue-600 hover:bg-blue-700 mb-2"
+                      onClick={() => {
+                        form.setFieldsValue({
+                          message: `I'm interested in "${listing.name}" and would like more information.`
+                        });
+                        document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' });
+                      }}
+                    >
+                      Request Information
+                    </Button>
+                    
+                    {listing.contactPhone && (
+                      <Button 
+                        block 
+                        onClick={() => {
+                          window.location.href = `tel:${listing.contactPhone}`;
+                          message.info(`Calling ${listing.contactPhone}`);
+                        }}
+                      >
+                        Call Now
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </Card>
+              
+              {/* Contact Information Card (without owner details) */}
+              <Card 
+                bordered={false} 
+                className="shadow-md rounded-lg"
+                title={<Title level={4} className="my-0">Contact Information</Title>}
+              >
+                {/* Public Contact Information */}
+                <div className="space-y-3">
+                  {listing.contactPhone && (
+                    <div className="flex items-center">
+                      <PhoneOutlined className="text-blue-500 mr-3" />
+                      <Text copyable>{listing.contactPhone}</Text>
+                    </div>
+                  )}
+                  
+                  {listing.contactEmail && (
+                    <div className="flex items-center">
+                      <MailOutlined className="text-blue-500 mr-3" />
+                      <Text copyable>{listing.contactEmail}</Text>
+                    </div>
+                  )}
+                  
+                  {listing.website && (
+                    <div className="flex items-center">
+                      <GlobalOutlined className="text-blue-500 mr-3" />
+                      <a href={listing.website.startsWith('http') ? listing.website : `https://${listing.website}`} 
+                         target="_blank" 
+                         rel="noopener noreferrer"
+                         className="text-blue-600 hover:underline"
+                      >
+                        {listing.website.replace(/^https?:\/\//i, '')}
+                      </a>
+                    </div>
+                  )}
+                </div>
+                
+                <Divider />
+                
+                {/* Contact Form */}
                 <Form
+                  id="contact-form"
                   form={form}
                   layout="vertical"
-                  onFinish={handleBookNow}
-                  initialValues={{
-                    guests: 2
-                  }}
+                  onFinish={handleContact}
                 >
                   <Form.Item
-                    name="checkIn"
-                    label="Check-in Date"
-                    rules={[{ required: true, message: 'Please select check-in date!' }]}
+                    name="message"
+                    label="Send a message"
+                    rules={[{ required: true, message: 'Please enter your message!' }]}
                   >
-                    <DatePicker 
-                      className="w-full" 
-                      format="YYYY-MM-DD"
-                      placeholder="Select check-in date" 
-                      disabledDate={(current) => current && current < dayjs().startOf('day')}
-                      suffixIcon={<CalendarOutlined />}
+                    <Input.TextArea
+                      rows={4}
+                      placeholder="I'm interested in this listing..."
                     />
                   </Form.Item>
-                  
-                  <Form.Item
-                    name="checkOut"
-                    label="Check-out Date"
-                    dependencies={['checkIn']}
-                    rules={[
-                      { required: true, message: 'Please select check-out date!' },
-                      ({ getFieldValue }) => ({
-                        validator(_, value) {
-                          const checkIn = getFieldValue('checkIn');
-                          if (!value || !checkIn || value.isAfter(checkIn)) {
-                            return Promise.resolve();
-                          }
-                          return Promise.reject(new Error('Check-out must be after check-in!'));
-                        },
-                      }),
-                    ]}
-                  >
-                    <DatePicker 
-                      className="w-full" 
-                      format="YYYY-MM-DD" 
-                      placeholder="Select check-out date"
-                      disabledDate={(current) => {
-                        const checkIn = form.getFieldValue('checkIn');
-                        return (current && current < dayjs().startOf('day')) || 
-                               (checkIn && current && current <= checkIn);
-                      }}
-                      suffixIcon={<CalendarOutlined />}
-                    />
-                  </Form.Item>
-                  
-                  <Form.Item
-                    name="guests"
-                    label="Number of Guests"
-                    rules={[{ required: true, message: 'Please select number of guests!' }]}
-                  >
-                    <InputNumber 
-                      min={1} 
-                      max={10} 
-                      className="w-full"
-                      addonBefore={<TeamOutlined />} 
-                    />
-                  </Form.Item>
-
-                  {/* Price Calculator */}
-                  <div className="bg-blue-50 p-4 rounded-lg mb-4">
-                    <Row justify="space-between" className="mb-1">
-                      <Text>${hotel.price} x <span id="nights">0</span> nights</Text>
-                      <Text strong>$<span id="subtotal">0</span></Text>
-                    </Row>
-                    <Row justify="space-between" className="mb-1">
-                      <Text>Service fee</Text>
-                      <Text>$<span id="serviceFee">0</span></Text>
-                    </Row>
-                    <Divider className="my-2" />
-                    <Row justify="space-between">
-                      <Text strong>Total</Text>
-                      <Text strong className="text-lg">$<span id="total">0</span></Text>
-                    </Row>
-                  </div>
                   
                   <Form.Item>
                     <Button 
                       type="primary" 
                       htmlType="submit" 
                       block
-                      size="large"
                       className="bg-blue-600 hover:bg-blue-700"
                     >
-                      Book Now
+                      Send Inquiry
                     </Button>
                   </Form.Item>
                 </Form>
-                
-                <Text type="secondary" className="block text-center text-xs mt-2">
-                  You won't be charged yet. Payment will be processed at checkout.
-                </Text>
               </Card>
-              </Badge.Ribbon>
               
-              {/* Contact Host Card */}
-              <Card bordered={false} className="shadow-md rounded-lg mt-4">
-                <Space className="flex items-center">
-                  <Avatar 
-                    size={48} 
-                    src={hotel.host?.image || "https://randomuser.me/api/portraits/men/32.jpg"}
-                  />
-                  <div>
-                    <Text strong>{hotel.host?.name || "John Host"}</Text>
-                    <div>
-                      {hotel.host?.isSuperhost && (
-                        <>
-                          <Text type="secondary" className="text-sm">Superhost</Text>
-                          <span className="mx-1">·</span>
-                        </>
-                      )}
-                      <Text type="secondary" className="text-sm">
-                        Response rate: {hotel.host?.responseRate || 99}%
-                      </Text>
+              {/* Related Listings Card - Uncomment if needed */}
+              {/* <Card 
+                bordered={false} 
+                className="shadow-md rounded-lg"
+                title={<Title level={5} className="my-0">More {listing.category?.name || 'Listings'}</Title>}
+              >
+                <div className="space-y-4">
+                  {relatedListings.map(item => (
+                    <div key={item._id} className="flex border-b pb-3 cursor-pointer" onClick={() => navigate(`/listings/${item._id}`)}>
+                      <div className="w-20 h-16 mr-3 overflow-hidden rounded">
+                        <img 
+                          src={item.images?.[0] || 'https://via.placeholder.com/80x60?text=No+Image'} 
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = 'https://via.placeholder.com/80x60?text=No+Image';
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Text strong className="line-clamp-1 hover:text-blue-600">{item.name}</Text>
+                        {item.location && (
+                          <Space className="text-xs text-gray-500">
+                            <EnvironmentOutlined /> {item.location?.split(',')[0]}
+                          </Space>
+                        )}
+                        {item.price && <div className="text-blue-600 font-medium">₹{item.price}</div>}
+                      </div>
                     </div>
-                  </div>
-                </Space>
-                <Button 
-                  type="default" 
-                  block 
-                  className="mt-4"
-                  onClick={() => {
-                    if (hotel.host?.phone) {
-                      window.location.href = `tel:${hotel.host.phone}`;
-                      message.info(`Calling host at ${hotel.host.phone}`);
-                    } else {
-                      message.info('Contact information not available');
-                    }
-                  }}
-                >
-                  Contact Host
-                </Button>
-              </Card>
+                  ))}
+                </div>
+              </Card> */}
             </div>
           </Col>
         </Row>
@@ -555,52 +802,6 @@ const HotelDetailsPage = () => {
           </Image.PreviewGroup>
         )}
       </div>
-      
-      {/* Add custom CSS for Carousel dots */}
-      <style jsx>{`
-        .hotel-carousel .ant-carousel .slick-dots li button {
-          background: #1890ff;
-          opacity: 0.4;
-        }
-        .hotel-carousel .ant-carousel .slick-dots li.slick-active button {
-          opacity: 1;
-        }
-        /* Make price calculator live with JavaScript */
-        ${`
-          document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('form');
-            const checkInInput = form.querySelector('input[id$=_checkIn]');
-            const checkOutInput = form.querySelector('input[id$=_checkOut]');
-            
-            const updatePriceCalculation = function() {
-              try {
-                const checkIn = dayjs(checkInInput.value);
-                const checkOut = dayjs(checkOutInput.value);
-                
-                if (checkIn.isValid() && checkOut.isValid() && checkOut.isAfter(checkIn)) {
-                  const nights = checkOut.diff(checkIn, 'day');
-                  const pricePerNight = ${hotel.price};
-                  const subtotal = nights * pricePerNight;
-                  const serviceFee = Math.round(subtotal * 0.12);
-                  const total = subtotal + serviceFee;
-                  
-                  document.getElementById('nights').textContent = nights;
-                  document.getElementById('subtotal').textContent = subtotal;
-                  document.getElementById('serviceFee').textContent = serviceFee;
-                  document.getElementById('total').textContent = total;
-                }
-              } catch (e) {
-                console.error('Error calculating price:', e);
-              }
-            };
-            
-            if (checkInInput && checkOutInput) {
-              checkInInput.addEventListener('change', updatePriceCalculation);
-              checkOutInput.addEventListener('change', updatePriceCalculation);
-            }
-          });
-        `}
-      `}</style>
     </div>
   );
 };

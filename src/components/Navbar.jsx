@@ -1,21 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, LogOut, User, Bell, Search, ChevronDown } from "lucide-react";
+import { Menu, X, LogOut, User, Bell, Search, ChevronDown, Home, ShoppingBag, Briefcase } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
 
 import {
   isAuthenticated,
   logoutUser,
   getCurrentUser,
 } from "../services/authService";
-import { Badge, Avatar, Input, Dropdown, Menu as AntMenu, Button } from "antd";
+import { Badge, Avatar, Input, Dropdown, Menu as AntMenu, Button, Tooltip, Spin } from "antd";
+
+// API URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [userAuthenticated, setUserAuthenticated] = useState(false);
   const [userData, setUserData] = useState(null);
   const [searchVisible, setSearchVisible] = useState(false);
-  const [categories, setCategories] = useState([]); // State for categories
+  const [categories, setCategories] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [loadingCategories, setLoadingCategories] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -25,6 +32,23 @@ const Navbar = () => {
     return location.pathname.startsWith(path);
   };
 
+  // Fetch categories from API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        const response = await axios.get(`${API_URL}/categories`);
+        setCategories(response.data.data || []);
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
   // Check authentication status when component mounts
   useEffect(() => {
     const checkAuth = () => {
@@ -32,7 +56,22 @@ const Navbar = () => {
       setUserAuthenticated(authStatus);
 
       if (authStatus) {
-        setUserData(getCurrentUser());
+        const user = getCurrentUser();
+        setUserData(user);
+        
+        // Check if user is admin
+        if (user?.role === "admin" || user?.role === "super-admin") {
+          setIsAdmin(true);
+          
+          // Store admin status in localStorage for persistence
+          localStorage.setItem("isAdmin", "true");
+        }
+      } else {
+        // Check if we have saved admin status
+        const savedAdminStatus = localStorage.getItem("isAdmin");
+        if (savedAdminStatus === "true") {
+          setIsAdmin(true);
+        }
       }
     };
 
@@ -40,9 +79,21 @@ const Navbar = () => {
 
     // Add event listener for storage changes (for multi-tab logout)
     window.addEventListener("storage", checkAuth);
+    
+    // Add scroll event listener for navbar styling
+    const handleScroll = () => {
+      if (window.scrollY > 50) {
+        setScrolled(true);
+      } else {
+        setScrolled(false);
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
 
     return () => {
       window.removeEventListener("storage", checkAuth);
+      window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
@@ -52,6 +103,11 @@ const Navbar = () => {
     logoutUser();
     setUserAuthenticated(false);
     setUserData(null);
+    
+    // Only clear admin status if explicitly logging out
+    localStorage.removeItem("isAdmin");
+    setIsAdmin(false);
+    
     navigate("/");
   };
 
@@ -62,30 +118,6 @@ const Navbar = () => {
     }
   };
 
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated()) {
-      const currentUser = getCurrentUser();
-      if (
-        currentUser?.role === "admin" ||
-        currentUser?.role === "super-admin"
-      ) {
-        setIsAdmin(true);
-      }
-    }
-  }, []);
-
-  // // Fetch categories (mocked for now)
-  // useEffect(() => {
-  //   // Replace with actual API call to fetch categories
-  //   setCategories([
-  //     { _id: '1', name: 'Category 1' },
-  //     { _id: '2', name: 'Category 2' },
-  //     { _id: '3', name: 'Category 3' },
-  //   ]);
-  // }, []);
-
   // User dropdown menu items
   const userMenuItems = (
     <AntMenu>
@@ -93,29 +125,57 @@ const Navbar = () => {
         <Link to="/account">My Profile</Link>
       </AntMenu.Item>
       {isAdmin && (
-        <AntMenu.Item key="2" icon={<Bell size={14} />}>
-          <Link to="/admin/dashboard">Dashboard</Link>
+        <AntMenu.Item key="2" icon={<Briefcase size={14} />}>
+          <Link to="/admin/dashboard">Vendor Dashboard</Link>
         </AntMenu.Item>
       )}
-      <AntMenu.Item
-        key="3"
-        icon={<LogOut size={14} />}
-        danger
-        onClick={handleLogout}
-      >
+      <AntMenu.Item key="3" icon={<LogOut size={14} />} danger onClick={handleLogout}>
         Log Out
+      </AntMenu.Item>
+    </AntMenu>
+  );
+  
+  // Dynamic categories menu
+  const categoryMenu = (
+    <AntMenu>
+      {loadingCategories ? (
+        <AntMenu.Item disabled>
+          <Spin size="small" /> Loading categories...
+        </AntMenu.Item>
+      ) : categories.length > 0 ? (
+        categories.map(category => (
+          <AntMenu.Item key={category._id} icon={<Home size={16} />}>
+            <Link to={`/listings?category=${category._id}`}>
+              {category.name}
+            </Link>
+          </AntMenu.Item>
+        ))
+      ) : (
+        <AntMenu.Item disabled>
+          No categories available
+        </AntMenu.Item>
+      )}
+      <AntMenu.Divider />
+      <AntMenu.Item key="all-categories">
+        <Link to="/listings" className="text-blue-600 font-medium">
+          View All Categories
+        </Link>
       </AntMenu.Item>
     </AntMenu>
   );
 
   return (
     <>
-      <nav className="bg-white shadow-md fixed top-0 left-0 w-full z-50 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+      <nav className={`bg-white fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+        scrolled ? 'shadow-md py-2' : 'shadow-sm py-3'
+      }`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 z-10">
             <img src="/Logo.png" alt="ListyGo Logo" className="h-10 w-auto" />
-            <span className="text-xl font-bold text-blue-400">ListyGo</span>
+            <span className={`text-xl font-bold text-blue-600 transition-all duration-300 ${
+              scrolled ? 'text-blue-700' : 'text-blue-600'
+            }`}>ListyGo</span>
           </Link>
 
           {/* Desktop Menu */}
@@ -123,8 +183,8 @@ const Navbar = () => {
             <div className="flex items-center gap-6 text-sm font-medium text-gray-700">
               <Link
                 to="/"
-                className={`transition duration-200 hover:text-blue-400 py-2 relative ${
-                  isActive("/") ? "text-blue-400 font-semibold" : ""
+                className={`transition duration-200 hover:text-blue-600 py-2 relative ${
+                  isActive("/") ? "text-blue-600 font-semibold" : ""
                 }`}
               >
                 Home
@@ -138,41 +198,33 @@ const Navbar = () => {
 
               <Link
                 to="/listings"
-                className={`transition duration-200 hover:text-blue-400 py-2 relative ${
-                  isActive("/listings") ? "text-blue-400 font-semibold" : ""
+                className={`transition duration-200 hover:text-blue-600 py-2 relative ${
+                  isActive("/listings") && !isActive("/listings/") ? "text-blue-600 font-semibold" : ""
                 }`}
               >
                 All Listings
-                {isActive("/listings") && (
+                {isActive("/listings") && !isActive("/listings/") && (
                   <motion.div
                     className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
                     layoutId="navbar-indicator"
                   />
                 )}
               </Link>
-              {/* 
+              
+              {/* Dynamic Categories Dropdown */}
               <Dropdown
-                overlay={
-                  <AntMenu>
-                    {categories.map(category => (
-                      <AntMenu.Item key={category._id}>
-                        <Link to={`/listings?category=${category._id}`}>
-                          {category.name}
-                        </Link>
-                      </AntMenu.Item>
-                    ))}
-                  </AntMenu>
-                }
+                overlay={categoryMenu}
+                placement="bottomCenter"
               >
-                <Link to="/listings" className="transition duration-200 hover:text-blue-400 py-2 relative">
+                <div className="cursor-pointer transition duration-200 hover:text-blue-600 py-2 relative flex items-center gap-1">
                   Categories <ChevronDown size={16} />
-                </Link>
-              </Dropdown> */}
+                </div>
+              </Dropdown>
 
               <Link
                 to="/about"
-                className={`transition duration-200 hover:text-blue-400 py-2 relative ${
-                  isActive("/about") ? "text-blue-400 font-semibold" : ""
+                className={`transition duration-200 hover:text-blue-600 py-2 relative ${
+                  isActive("/about") ? "text-blue-600 font-semibold" : ""
                 }`}
               >
                 About Us
@@ -186,8 +238,8 @@ const Navbar = () => {
 
               <Link
                 to="/contact"
-                className={`transition duration-200 hover:text-blue-400 py-2 relative ${
-                  isActive("/contact") ? "text-blue-400 font-semibold" : ""
+                className={`transition duration-200 hover:text-blue-600 py-2 relative ${
+                  isActive("/contact") ? "text-blue-600 font-semibold" : ""
                 }`}
               >
                 Contact Us
@@ -198,6 +250,23 @@ const Navbar = () => {
                   />
                 )}
               </Link>
+              
+              {isAdmin && (
+                <Link
+                  to="/admin/dashboard"
+                  className={`transition duration-200 hover:text-blue-600 py-2 relative ${
+                    isActive("/admin") ? "text-blue-600 font-semibold" : ""
+                  }`}
+                >
+                  Vendor Panel
+                  {isActive("/admin") && (
+                    <motion.div
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"
+                      layoutId="navbar-indicator"
+                    />
+                  )}
+                </Link>
+              )}
             </div>
 
             {userAuthenticated ? (
@@ -223,7 +292,7 @@ const Navbar = () => {
                         {userData?.name || "User"}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {userData?.role || "Guest"}
+                        {userData?.role === "admin" ? "Vendor" : userData?.role || "User"}
                       </div>
                     </div>
                     <ChevronDown size={16} className="text-gray-500" />
@@ -232,9 +301,10 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="flex items-center gap-3">
+                {/* Original user login/signup buttons */}
                 <Link
                   to="/login"
-                  className="text-blue-400 border border-blue-500 px-4 py-1.5 rounded-full hover:bg-blue-50 transition-colors text-sm font-medium"
+                  className="text-blue-600 border border-blue-600 px-4 py-1.5 rounded-full hover:bg-blue-50 transition-colors text-sm font-medium"
                 >
                   Log In
                 </Link>
@@ -244,70 +314,43 @@ const Navbar = () => {
                 >
                   Sign Up
                 </Link>
+                
+                {/* Added vendor login option */}
+                <Tooltip title="For business owners">
+                  <Link
+                    to="/admin/login"
+                    className="text-gray-600 border border-gray-300 px-4 py-1.5 rounded-full hover:bg-gray-50 transition-colors text-sm font-medium flex items-center gap-2"
+                  >
+                    <Briefcase size={14} /> Vendor
+                  </Link>
+                </Tooltip>
               </div>
             )}
           </div>
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center gap-4">
-            {/* <button
-              onClick={() => setSearchVisible(!searchVisible)}
-              className="text-gray-500 hover:text-blue-400 transition-colors"
-            >
-              <Search size={20} />
-            </button> */}
-
-            {/* {userAuthenticated && (
-              <Badge count={3} size="small">
+            {isAdmin && (
+              <Tooltip title="Vendor Dashboard">
                 <Link
-                  to="/notifications"
-                  className="text-gray-500 hover:text-blue-400 transition-colors"
+                  to="/admin/dashboard"
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  <Bell size={20} />
+                  <Badge status="processing" color="blue">
+                    <Briefcase size={20} />
+                  </Badge>
                 </Link>
-              </Badge>
-            )} */}
-
+              </Tooltip>
+            )}
             <button
               onClick={toggleMenu}
-              className="text-gray-700 hover:text-blue-400 transition-colors"
+              className="text-gray-700 hover:text-blue-600 transition-colors"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
             >
               {menuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
         </div>
-
-        {/* Search bar overlay */}
-        {/* <AnimatePresence>
-          {searchVisible && (
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.2 }}
-              className="absolute top-full left-0 w-full bg-white shadow-md py-3 px-4"
-            >
-              <div className="max-w-3xl mx-auto flex">
-                <Input.Search
-                  placeholder="Search for hotels, destinations..."
-                  allowClear
-                  enterButton
-                  size="large"
-                  onSearch={handleSearch}
-                  className="w-full"
-                  autoFocus
-                />
-                <Button
-                  type="text"
-                  className="ml-2"
-                  icon={<X size={18} />}
-                  onClick={() => setSearchVisible(false)}
-                />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence> */}
 
         {/* Mobile Dropdown */}
         <AnimatePresence>
@@ -346,7 +389,7 @@ const Navbar = () => {
                   to="/"
                   className={`py-2 ${
                     isActive("/")
-                      ? "text-blue-400 font-semibold"
+                      ? "text-blue-600 font-semibold"
                       : "text-gray-700"
                   }`}
                   onClick={() => setMenuOpen(false)}
@@ -356,19 +399,52 @@ const Navbar = () => {
                 <Link
                   to="/listings"
                   className={`py-2 ${
-                    isActive("/listings")
-                      ? "text-blue-400 font-semibold"
+                    isActive("/listings") && !isActive("/listings/")
+                      ? "text-blue-600 font-semibold"
                       : "text-gray-700"
                   }`}
                   onClick={() => setMenuOpen(false)}
                 >
                   All Listings
                 </Link>
+                
+                {/* Dynamic categories in mobile menu */}
+                <div className="py-2 text-gray-700">
+                  <div className="mb-2 font-medium">Categories</div>
+                  {loadingCategories ? (
+                    <div className="flex justify-center py-2">
+                      <Spin size="small" />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2 pl-2">
+                      {categories.slice(0, 6).map((category) => (
+                        <Link 
+                          key={category._id}
+                          to={`/listings?category=${category._id}`}
+                          className="flex items-center gap-2 py-1 text-gray-600 hover:text-blue-600"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          <Home size={14} /> {category.name}
+                        </Link>
+                      ))}
+                      {categories.length > 6 && (
+                        <Link
+                          to="/listings"
+                          className="flex items-center gap-2 py-1 text-blue-600 font-medium"
+                          onClick={() => setMenuOpen(false)}
+                        >
+                          View All ({categories.length})
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                </div>
+                
                 <Link
                   to="/about"
                   className={`py-2 ${
                     isActive("/about")
-                      ? "text-blue-400 font-semibold"
+                      ? "text-blue-600 font-semibold"
                       : "text-gray-700"
                   }`}
                   onClick={() => setMenuOpen(false)}
@@ -379,7 +455,7 @@ const Navbar = () => {
                   to="/contact"
                   className={`py-2 ${
                     isActive("/contact")
-                      ? "text-blue-400 font-semibold"
+                      ? "text-blue-600 font-semibold"
                       : "text-gray-700"
                   }`}
                   onClick={() => setMenuOpen(false)}
@@ -397,14 +473,15 @@ const Navbar = () => {
                     >
                       <User size={16} /> My Profile
                     </Link>
-                    {/* <Link
-                      to="/notifications"
-                      className="py-2 text-gray-700 flex items-center gap-2"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <Bell size={16} /> Notifications{" "}
-                      <Badge count={3} className="ml-1" />
-                    </Link> */}
+                    {isAdmin && (
+                      <Link
+                        to="/admin/dashboard"
+                        className="py-2 text-blue-600 flex items-center gap-2 font-medium"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <Briefcase size={16} /> Vendor Dashboard
+                      </Link>
+                    )}
                     <button
                       onClick={() => {
                         handleLogout();
@@ -417,9 +494,10 @@ const Navbar = () => {
                   </>
                 ) : (
                   <div className="flex flex-col gap-3 mt-3">
+                    {/* Preserve standard login options in mobile menu */}
                     <Link
                       to="/login"
-                      className="text-blue-400 border border-blue-500 px-4 py-2 rounded-full hover:bg-blue-50 text-center"
+                      className="text-blue-600 border border-blue-600 px-4 py-2 rounded-full hover:bg-blue-50 text-center"
                       onClick={() => setMenuOpen(false)}
                     >
                       Log In
@@ -431,6 +509,18 @@ const Navbar = () => {
                     >
                       Sign Up
                     </Link>
+                    <div className="relative flex items-center py-2">
+                      <div className="flex-grow border-t border-gray-200"></div>
+                      <span className="flex-shrink mx-4 text-gray-400 text-xs">OR</span>
+                      <div className="flex-grow border-t border-gray-200"></div>
+                    </div>
+                    <Link
+                      to="/admin/login"
+                      className="text-gray-600 border border-gray-300 px-4 py-2 rounded-full hover:bg-gray-50 text-center flex items-center justify-center gap-2"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <Briefcase size={16} /> Vendor Login
+                    </Link>
                   </div>
                 )}
               </div>
@@ -440,7 +530,7 @@ const Navbar = () => {
       </nav>
 
       {/* Space to prevent content from being hidden under navbar */}
-      <div className="h-16"></div>
+      <div className={`h-16 ${scrolled ? 'h-14' : 'h-16'}`}></div>
     </>
   );
 };

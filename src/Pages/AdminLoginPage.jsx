@@ -18,21 +18,21 @@ const AdminLoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-    // Form validation
-    if (!email || !password) {
-      setError("Please enter both email and password.");
-      return;
-    }
-
-    if (!/\S+@\S+\.\S+/.test(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-
-    setError("");
     setLoading(true);
-
+    setError('');
+    
     try {
+      // Form validation
+      if (!email || !password) {
+        setError("Please enter both email and password.");
+        return;
+      }
+
+      if (!/\S+@\S+\.\S+/.test(email)) {
+        setError("Please enter a valid email address.");
+        return;
+      }
+
       // Make admin login request
       const response = await axios.post(`${API_URL}/admin/login`, {
         email,
@@ -50,17 +50,20 @@ const AdminLoginPage = () => {
         localStorage.setItem("userId", admin.id);
         localStorage.setItem("userName", admin.name);
 
+        // Add this line to enable persistent admin login
+        localStorage.setItem("isAdmin", "true");
+
         setSuccess("Admin login successful! Redirecting...");
 
         // Redirect to admin dashboard
         setTimeout(() => {
-          navigate("/admin/listings");
+          navigate('/admin/dashboard');
         }, 1500);
       }
-    } catch (error) {
-      console.error("Admin login error:", error);
+    } catch (err) {
+      console.error("Admin login error:", err);
       setError(
-        error.response?.data?.error ||
+        err.response?.data?.error ||
           "Login failed. Please check your credentials."
       );
     } finally {

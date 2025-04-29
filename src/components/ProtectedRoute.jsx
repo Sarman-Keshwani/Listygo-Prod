@@ -17,11 +17,13 @@ const ProtectedRoute = ({ children, isAdmin = false }) => {
         return;
       }
       
-      // If this is an admin route, check if user has admin role
+      // If this is an admin route, check if user has admin role or admin persistence
       if (isAdmin) {
         const user = getCurrentUser();
-        const hasAdminRole = user.role === 'admin' || user.role === 'super-admin';
-        setAuthorized(hasAdminRole);
+        const hasAdminRole = user?.role === 'admin' || user?.role === 'super-admin';
+        const isAdminPersisted = localStorage.getItem("isAdmin") === "true";
+        
+        setAuthorized(hasAdminRole || isAdminPersisted);
       } else {
         setAuthorized(true);
       }
@@ -35,7 +37,7 @@ const ProtectedRoute = ({ children, isAdmin = false }) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white pt-16">
-        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
