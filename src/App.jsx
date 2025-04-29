@@ -30,7 +30,7 @@ function HomePage() {
   return (
     <>
        <Header />
-      <Destinations />
+      
       <EmptyGrids/>
       <HomePageHotelCard />
       <HostSection />
