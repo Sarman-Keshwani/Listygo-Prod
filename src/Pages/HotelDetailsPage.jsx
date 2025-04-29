@@ -1,16 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { 
-  Row, Col, Card, Button, Spin, Typography, Tag, Form, 
-  Input, Carousel, Rate, Image, Divider, Empty, 
-  Result, Badge, Space, Breadcrumb, Avatar, message,
-  Tabs
-} from 'antd';
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import {
+  Row,
+  Col,
+  Card,
+  Button,
+  Spin,
+  Typography,
+  Tag,
+  Form,
+  Input,
+  Carousel,
+  Rate,
+  Image,
+  Divider,
+  Empty,
+  Result,
+  Badge,
+  Space,
+  Breadcrumb,
+  Avatar,
+  message,
+  Tabs,
+} from "antd";
 import {
   ArrowLeftOutlined,
   EnvironmentOutlined,
-  TagOutlined, 
+  TagOutlined,
   HomeOutlined,
   TeamOutlined,
   InfoCircleOutlined,
@@ -18,21 +35,30 @@ import {
   CheckCircleOutlined,
   PhoneOutlined,
   MailOutlined,
-  GlobalOutlined
-} from '@ant-design/icons';
-import { MdBed, MdBathtub, MdWifi, MdAcUnit, MdTv, MdKitchen, MdPool, MdFitnessCenter } from 'react-icons/md';
-import { FiMaximize2, FiClock } from 'react-icons/fi';
+  GlobalOutlined,
+} from "@ant-design/icons";
+import {
+  MdBed,
+  MdBathtub,
+  MdWifi,
+  MdAcUnit,
+  MdTv,
+  MdKitchen,
+  MdPool,
+  MdFitnessCenter,
+} from "react-icons/md";
+import { FiMaximize2, FiClock } from "react-icons/fi";
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const HotelDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [imagePreviewVisible, setImagePreviewVisible] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [form] = Form.useForm();
@@ -47,24 +73,26 @@ const HotelDetailsPage = () => {
       try {
         setLoading(true);
         const response = await axios.get(`${API_URL}/listings/${id}`);
-        
+
         if (response.data.success) {
           setListing(response.data.data);
           // After getting listing, fetch related listings from same category
           if (response.data.data.category && response.data.data.category._id) {
             fetchRelatedListings(response.data.data.category._id);
           }
-          
+
           // Get coordinates for the location if available
           if (response.data.data.location) {
             fetchCoordinates(response.data.data.location);
           }
         } else {
-          setError('Failed to fetch listing details');
+          setError("Failed to fetch listing details");
         }
       } catch (err) {
-        console.error('Error fetching listing details:', err);
-        setError('An error occurred while fetching listing details. Please try again later.');
+        console.error("Error fetching listing details:", err);
+        setError(
+          "An error occurred while fetching listing details. Please try again later."
+        );
       } finally {
         setLoading(false);
       }
@@ -80,8 +108,10 @@ const HotelDetailsPage = () => {
       setMapLoading(true);
       // Using OpenStreetMap Nominatim API for geocoding (free and doesn't require API key)
       const encodedLocation = encodeURIComponent(locationString);
-      const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodedLocation}`);
-      
+      const response = await axios.get(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodedLocation}`
+      );
+
       if (response.data && response.data.length > 0) {
         const { lat, lon } = response.data[0];
         setCoordinates({ lat, lng: lon });
@@ -89,7 +119,7 @@ const HotelDetailsPage = () => {
         setMapError(true);
       }
     } catch (error) {
-      console.error('Error fetching coordinates:', error);
+      console.error("Error fetching coordinates:", error);
       setMapError(true);
     } finally {
       setMapLoading(false);
@@ -98,12 +128,14 @@ const HotelDetailsPage = () => {
 
   const fetchRelatedListings = async (categoryId) => {
     try {
-      const response = await axios.get(`${API_URL}/listings?category=${categoryId}&limit=3&exclude=${id}`);
+      const response = await axios.get(
+        `${API_URL}/listings?category=${categoryId}&limit=3&exclude=${id}`
+      );
       if (response.data.success) {
         setRelatedListings(response.data.data || []);
       }
     } catch (error) {
-      console.error('Error fetching related listings:', error);
+      console.error("Error fetching related listings:", error);
     }
   };
 
@@ -111,20 +143,22 @@ const HotelDetailsPage = () => {
   const handleContact = async (values) => {
     try {
       // This is just a placeholder - implement actual contact logic
-      message.success('Your inquiry has been sent successfully!');
+      message.success("Your inquiry has been sent successfully!");
       form.resetFields();
     } catch (error) {
-      message.error('Failed to process request');
-      console.error('Contact error:', error);
+      message.error("Failed to process request");
+      console.error("Contact error:", error);
     }
   };
 
   // Prepare images
   const getImages = () => {
     if (!listing) return [];
-    return Array.isArray(listing.images) && listing.images.length > 0 
-      ? listing.images 
-      : (listing.image ? [listing.image] : []);
+    return Array.isArray(listing.images) && listing.images.length > 0
+      ? listing.images
+      : listing.image
+      ? [listing.image]
+      : [];
   };
 
   const images = getImages();
@@ -138,70 +172,94 @@ const HotelDetailsPage = () => {
 
   const getAmenityIcon = (amenity) => {
     if (!amenity) return <CheckCircleOutlined />;
-    
+
     // Clean amenity name first
-    const sanitizedAmenity = typeof amenity === 'string' 
-      ? amenity.trim().replace(/^\/+|\/+$/g, '').toLowerCase()
-      : '';
-    
+    const sanitizedAmenity =
+      typeof amenity === "string"
+        ? amenity
+            .trim()
+            .replace(/^\/+|\/+$/g, "")
+            .toLowerCase()
+        : "";
+
     const iconSize = 20;
-    
+
     // Map common amenities to icons
     const amenityIcons = {
-      'wifi': <MdWifi size={iconSize} />,
-      'free wifi': <MdWifi size={iconSize} />,
-      'air conditioning': <MdAcUnit size={iconSize} />,
-      'ac': <MdAcUnit size={iconSize} />,
-      'tv': <MdTv size={iconSize} />,
-      'television': <MdTv size={iconSize} />,
-      'kitchen': <MdKitchen size={iconSize} />,
-      'pool': <MdPool size={iconSize} />,
-      'swimming pool': <MdPool size={iconSize} />,
-      'gym': <MdFitnessCenter size={iconSize} />,
-      'fitness center': <MdFitnessCenter size={iconSize} />,
-      'parking': <EnvironmentOutlined style={{ fontSize: iconSize }} />,
-      'restaurant': <InfoCircleOutlined style={{ fontSize: iconSize }} />,
-      'pet friendly': <InfoCircleOutlined style={{ fontSize: iconSize }} />
+      wifi: <MdWifi size={iconSize} />,
+      "free wifi": <MdWifi size={iconSize} />,
+      "air conditioning": <MdAcUnit size={iconSize} />,
+      ac: <MdAcUnit size={iconSize} />,
+      tv: <MdTv size={iconSize} />,
+      television: <MdTv size={iconSize} />,
+      kitchen: <MdKitchen size={iconSize} />,
+      pool: <MdPool size={iconSize} />,
+      "swimming pool": <MdPool size={iconSize} />,
+      gym: <MdFitnessCenter size={iconSize} />,
+      "fitness center": <MdFitnessCenter size={iconSize} />,
+      parking: <EnvironmentOutlined style={{ fontSize: iconSize }} />,
+      restaurant: <InfoCircleOutlined style={{ fontSize: iconSize }} />,
+      "pet friendly": <InfoCircleOutlined style={{ fontSize: iconSize }} />,
     };
 
-    return amenityIcons[sanitizedAmenity] || <CheckCircleOutlined style={{ fontSize: iconSize - 2 }} />;
+    return (
+      amenityIcons[sanitizedAmenity] || (
+        <CheckCircleOutlined style={{ fontSize: iconSize - 2 }} />
+      )
+    );
   };
 
   // Format business hours display
   const formatBusinessHours = () => {
     if (!listing || !listing.hours) return null;
-    
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+    const days = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ];
     const formattedHours = [];
-    
+
     // Check if we have any hours data
-    const hasHoursData = Object.values(listing.hours).some(dayHours => 
-      dayHours && dayHours.open && dayHours.close
+    const hasHoursData = Object.values(listing.hours).some(
+      (dayHours) => dayHours && dayHours.open && dayHours.close
     );
-    
+
     if (!hasHoursData) return null;
-    
+
     // Format each day's hours
     for (const day of days) {
-      if (listing.hours[day] && listing.hours[day].open && listing.hours[day].close) {
+      if (
+        listing.hours[day] &&
+        listing.hours[day].open &&
+        listing.hours[day].close
+      ) {
         // Format time to be more readable
         const formatTime = (timeStr) => {
           // If it's already in a readable format, return as is
-          if (timeStr.includes(':')) {
-            const [hours, minutes] = timeStr.split(':');
+          if (timeStr.includes(":")) {
+            const [hours, minutes] = timeStr.split(":");
             const h = parseInt(hours);
-            return `${h % 12 === 0 ? 12 : h % 12}:${minutes} ${h >= 12 ? 'PM' : 'AM'}`;
+            return `${h % 12 === 0 ? 12 : h % 12}:${minutes} ${
+              h >= 12 ? "PM" : "AM"
+            }`;
           }
           return timeStr;
         };
-        
+
         formattedHours.push({
           day: day.charAt(0).toUpperCase() + day.slice(1),
-          hours: `${formatTime(listing.hours[day].open)} - ${formatTime(listing.hours[day].close)}`
+          hours: `${formatTime(listing.hours[day].open)} - ${formatTime(
+            listing.hours[day].close
+          )}`,
         });
       }
     }
-    
+
     return formattedHours.length > 0 ? formattedHours : null;
   };
 
@@ -209,7 +267,7 @@ const HotelDetailsPage = () => {
 
   const MapComponent = ({ coordinates, name, location }) => {
     const [mapHeight] = useState(300); // Fixed height for the map
-    
+
     // Create a simpler and more reliable OpenStreetMap implementation
     if (mapLoading) {
       return (
@@ -218,15 +276,17 @@ const HotelDetailsPage = () => {
         </div>
       );
     }
-    
+
     if (mapError || !coordinates) {
       return (
         <div className="h-[300px] bg-gray-100 flex flex-col items-center justify-center">
           <Text type="secondary">Unable to load map for this location</Text>
           {location && (
-            <a 
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}
-              target="_blank" 
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                location
+              )}`}
+              target="_blank"
               rel="noopener noreferrer"
               className="mt-2 text-blue-600 hover:underline"
             >
@@ -236,10 +296,16 @@ const HotelDetailsPage = () => {
         </div>
       );
     }
-    
+
     // Use OpenStreetMap with proper zoom level and marker
-    const openStreetMapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(coordinates.lng) - 0.01},${parseFloat(coordinates.lat) - 0.01},${parseFloat(coordinates.lng) + 0.01},${parseFloat(coordinates.lat) + 0.01}&layer=mapnik&marker=${coordinates.lat},${coordinates.lng}`;
-    
+    const openStreetMapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${
+      parseFloat(coordinates.lng) - 0.01
+    },${parseFloat(coordinates.lat) - 0.01},${
+      parseFloat(coordinates.lng) + 0.01
+    },${parseFloat(coordinates.lat) + 0.01}&layer=mapnik&marker=${
+      coordinates.lat
+    },${coordinates.lng}`;
+
     return (
       <div className="h-[300px] border rounded overflow-hidden">
         <iframe
@@ -253,7 +319,7 @@ const HotelDetailsPage = () => {
           src={openStreetMapUrl}
         ></iframe>
         <div className="py-1 text-center">
-          <a 
+          <a
             href={`https://www.openstreetmap.org/?mlat=${coordinates.lat}&mlon=${coordinates.lng}#map=15/${coordinates.lat}/${coordinates.lng}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -279,9 +345,16 @@ const HotelDetailsPage = () => {
       <Result
         status="error"
         title="Something went wrong"
-        subTitle={error || "We couldn't find this listing. It might have been removed or there was a connection error."}
+        subTitle={
+          error ||
+          "We couldn't find this listing. It might have been removed or there was a connection error."
+        }
         extra={
-          <Button type="primary" onClick={() => navigate('/listings')} className="bg-blue-600 hover:bg-blue-700">
+          <Button
+            type="primary"
+            onClick={() => navigate("/listings")}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
             Back to Listings
           </Button>
         }
@@ -297,54 +370,71 @@ const HotelDetailsPage = () => {
           <Col span={24}>
             <Breadcrumb className="">
               <Breadcrumb.Item>
-                <a onClick={() => navigate('/')}>
+                <a onClick={() => navigate("/")}>
                   <HomeOutlined /> Home
                 </a>
               </Breadcrumb.Item>
               <Breadcrumb.Item>
-                <a onClick={() => navigate('/listings')}>Listings</a>
+                <a onClick={() => navigate("/listings")}>Listings</a>
               </Breadcrumb.Item>
               {listing.category && (
                 <Breadcrumb.Item>
-                  <a onClick={() => navigate(`/listings?category=${listing.category._id}`)}>
+                  <a
+                    onClick={() =>
+                      navigate(`/listings?category=${listing.category._id}`)
+                    }
+                  >
                     {listing.category.name}
                   </a>
                 </Breadcrumb.Item>
               )}
               <Breadcrumb.Item>{listing.name}</Breadcrumb.Item>
             </Breadcrumb>
-            
-            <Button 
-              type="link" 
-              icon={<ArrowLeftOutlined />} 
+
+            <Button
+              type="link"
+              icon={<ArrowLeftOutlined />}
               onClick={() => navigate(-1)}
               className="mb-4 px-0 flex items-center"
             >
               Back to listings
             </Button>
-            
+
             <div className="flex justify-between items-center flex-wrap">
               <div>
-                <Title level={2} className="mb-2">{listing.name}</Title>
+                <Title level={2} className="mb-2">
+                  {listing.name}
+                </Title>
                 <Space className="mb-4 flex-wrap">
                   {listing.location && (
                     <Tag icon={<EnvironmentOutlined />} color="blue">
                       {listing.location}
                     </Tag>
                   )}
-                  {listing.category && <Tag color="purple">{listing.category.name}</Tag>}
-                  <Rate disabled defaultValue={listing.rating || 4.5} allowHalf className="text-sm" />
+                  {listing.category && (
+                    <Tag color="purple">{listing.category.name}</Tag>
+                  )}
+                  <Rate
+                    disabled
+                    defaultValue={listing.rating || 4.5}
+                    allowHalf
+                    className="text-sm"
+                  />
                   <Text type="secondary">{listing.rating || 4.5} Rating</Text>
                 </Space>
               </div>
-              
+
               {listing.price && (
                 <Badge.Ribbon text={`₹${listing.price}`} color="blue">
                   <Card className="mb-4 md:mb-0 bg-white shadow-sm">
                     <div className="text-center">
-                      <Title level={4} className="mb-0">₹{listing.price}</Title>
+                      <Title level={4} className="mb-0">
+                        ₹{listing.price}
+                      </Title>
                       <Text type="secondary">
-                        {listing.category?.name === 'Restaurants' ? 'avg price' : ''}
+                        {listing.category?.name === "Restaurants"
+                          ? "avg price"
+                          : ""}
                       </Text>
                     </div>
                   </Card>
@@ -357,7 +447,10 @@ const HotelDetailsPage = () => {
         {/* Image Gallery and Details Section */}
         <Row gutter={[24, 24]}>
           <Col xs={24} xl={16}>
-            <Card bordered={false} className="shadow-md rounded-lg overflow-hidden">
+            <Card
+              bordered={false}
+              className="shadow-md rounded-lg overflow-hidden"
+            >
               <div className="relative">
                 <Carousel
                   effect="fade"
@@ -369,14 +462,18 @@ const HotelDetailsPage = () => {
                 >
                   {images.length > 0 ? (
                     images.map((image, index) => (
-                      <div key={index} className="h-[400px] rounded-lg overflow-hidden">
+                      <div
+                        key={index}
+                        className="h-[400px] rounded-lg overflow-hidden"
+                      >
                         <img
                           src={image}
                           alt={`${listing.name} - View ${index + 1}`}
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = 'https://via.placeholder.com/800x400?text=No+Image+Available';
+                            e.target.src =
+                              "https://via.placeholder.com/800x400?text=No+Image+Available";
                           }}
                         />
                       </div>
@@ -387,7 +484,7 @@ const HotelDetailsPage = () => {
                     </div>
                   )}
                 </Carousel>
-                
+
                 {images.length > 0 && (
                   <Button
                     icon={<FullscreenOutlined />}
@@ -404,9 +501,11 @@ const HotelDetailsPage = () => {
                 <Row gutter={8} className="mt-4">
                   {images.slice(0, 5).map((img, index) => (
                     <Col span={4} key={index}>
-                      <div 
+                      <div
                         className={`cursor-pointer rounded-md overflow-hidden h-16 border-2 ${
-                          activeImage === index ? 'border-blue-500' : 'border-transparent'
+                          activeImage === index
+                            ? "border-blue-500"
+                            : "border-transparent"
                         }`}
                         onClick={() => handleThumbnailClick(index)}
                       >
@@ -416,7 +515,8 @@ const HotelDetailsPage = () => {
                           className="w-full h-full object-cover"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = 'https://via.placeholder.com/100?text=Error';
+                            e.target.src =
+                              "https://via.placeholder.com/100?text=Error";
                           }}
                         />
                       </div>
@@ -424,76 +524,171 @@ const HotelDetailsPage = () => {
                   ))}
                   {images.length > 5 && (
                     <Col span={4}>
-                      <div 
+                      <div
                         className="cursor-pointer rounded-md overflow-hidden h-16 bg-black/70 flex items-center justify-center"
                         onClick={() => setImagePreviewVisible(true)}
                       >
-                        <Text className="text-white">+{images.length - 5} more</Text>
+                        <Text className="text-white">
+                          +{images.length - 5} more
+                        </Text>
                       </div>
                     </Col>
                   )}
                 </Row>
               )}
             </Card>
-            
+
             {/* Listing Details Tabs */}
-            <Card 
-              bordered={false} 
+            <Card
+              bordered={false}
               className="mt-6 shadow-md rounded-lg"
               title={<Title level={4}>Listing Details</Title>}
             >
               <Tabs defaultActiveKey="details">
                 <TabPane tab="Details" key="details">
-                  {/* Attributes Section - Dynamic for any category */}
-                  {listing.attributes && Object.keys(listing.attributes).length > 0 && (
-                    <Row gutter={[16, 16]} className="mb-6">
-                      {Object.entries(listing.attributes).map(([key, value], index) => {
-                        if (value === false) return null;
-                        
-                        let displayValue = value;
-                        if (value === true) {
-                          displayValue = 'Yes';
-                        } else if (Array.isArray(value)) {
-                          displayValue = value.join(', ');
-                        }
-                        
-                        const friendlyKey = key
-                          .replace(/([A-Z])/g, ' $1')
-                          .replace(/^./, str => str.toUpperCase());
-                          
-                        const iconMap = {
-                          bedrooms: <MdBed size={28} className="text-blue-600" />,
-                          bathrooms: <MdBathtub size={28} className="text-blue-600" />,
-                          maxGuests: <TeamOutlined style={{ fontSize: '24px' }} className="text-blue-600" />,
-                        };
-                        
-                        return (
-                          <Col xs={12} sm={6} key={key}>
-                            <Card className="text-center h-full bg-blue-50 border-0">
-                              <div className="flex flex-col items-center">
-                                <Avatar size={48} className="bg-blue-100 flex items-center justify-center mb-2">
-                                  {iconMap[key] || <InfoCircleOutlined style={{ fontSize: '24px' }} className="text-blue-600" />}
-                                </Avatar>
-                                <Text strong>{displayValue} {friendlyKey}</Text>
-                              </div>
-                            </Card>
-                          </Col>
-                        );
-                      })}
-                    </Row>
+                  {/* Attributes Section - Now handles string format */}
+                  {listing.attributes && (
+                    <>
+                      <Divider orientation="left">
+                        <Space>
+                          <InfoCircleOutlined />
+                          <span>Features & Attributes</span>
+                        </Space>
+                      </Divider>
+
+                      <Row gutter={[16, 16]} className="mb-6">
+                        {(() => {
+                          // Handle case where attributes might be a character-by-character object
+                          let attributeString = "";
+
+                          if (
+                            typeof listing.attributes === "object" &&
+                            !Array.isArray(listing.attributes)
+                          ) {
+                            // Check if it's a numbered-key object (character by character)
+                            const keys = Object.keys(listing.attributes);
+                            const isCharByChar = keys.every(
+                              (k) => !isNaN(parseInt(k))
+                            );
+
+                            if (isCharByChar) {
+                              // Reconstruct the string from individual characters
+                              attributeString = keys
+                                .sort((a, b) => parseInt(a) - parseInt(b))
+                                .map((k) => listing.attributes[k])
+                                .join("");
+                            } else {
+                              // It's a normal object, convert to comma-separated string
+                              attributeString = Object.keys(
+                                listing.attributes
+                              ).join(", ");
+                            }
+                          } else {
+                            // It's already a string
+                            attributeString = String(listing.attributes || "");
+                          }
+
+                          // Map of attribute keywords to icons
+                          const iconMap = {
+                            bedrooms: (
+                              <MdBed size={28} className="text-blue-600" />
+                            ),
+                            bathrooms: (
+                              <MdBathtub size={28} className="text-blue-600" />
+                            ),
+                            maxGuests: (
+                              <TeamOutlined
+                                style={{ fontSize: "24px" }}
+                                className="text-blue-600"
+                              />
+                            ),
+                            wifi: (
+                              <MdWifi size={28} className="text-blue-600" />
+                            ),
+                            pool: (
+                              <MdPool size={28} className="text-blue-600" />
+                            ),
+                            kitchen: (
+                              <MdKitchen size={28} className="text-blue-600" />
+                            ),
+                            gym: (
+                              <MdFitnessCenter
+                                size={28}
+                                className="text-blue-600"
+                              />
+                            ),
+                            parking: (
+                              <EnvironmentOutlined
+                                style={{ fontSize: "24px" }}
+                                className="text-blue-600"
+                              />
+                            ),
+                            restaurant: (
+                              <InfoCircleOutlined
+                                style={{ fontSize: "24px" }}
+                                className="text-blue-600"
+                              />
+                            ),
+                            // Add more mappings as needed
+                          };
+
+                          // Now split the string and render attributes
+                          return attributeString
+                            .split(",")
+                            .map((attribute, index) => {
+                              const cleanAttr = attribute.trim().toLowerCase();
+                              if (!cleanAttr) return null;
+
+                              // Find matching icon or use default
+                              const icon = Object.keys(iconMap).find((key) =>
+                                cleanAttr.includes(key.toLowerCase())
+                              );
+
+                              return (
+                                <Col xs={12} sm={6} key={index}>
+                                  <Card className="text-center h-full bg-blue-50 border-0">
+                                    <div className="flex flex-col items-center">
+                                      <Avatar
+                                        size={48}
+                                        className="bg-blue-100 flex items-center justify-center mb-2"
+                                      >
+                                        {icon ? (
+                                          iconMap[icon]
+                                        ) : (
+                                          <InfoCircleOutlined
+                                            style={{ fontSize: "24px" }}
+                                            className="text-blue-600"
+                                          />
+                                        )}
+                                      </Avatar>
+                                      <Text strong>
+                                        {cleanAttr
+                                          .replace(/([A-Z])/g, " $1")
+                                          .replace(/^./, (str) =>
+                                            str.toUpperCase()
+                                          )}
+                                      </Text>
+                                    </div>
+                                  </Card>
+                                </Col>
+                              );
+                            });
+                        })()}
+                      </Row>
+                    </>
                   )}
-                  
+
                   <Divider orientation="left">
                     <Space>
                       <InfoCircleOutlined />
                       <span>Description</span>
                     </Space>
                   </Divider>
-                  
+
                   <Paragraph className="text-gray-600">
-                    {listing.description || 'No description available.'}
+                    {listing.description || "No description available."}
                   </Paragraph>
-                  
+
                   {/* Amenities Section */}
                   <Divider orientation="left">
                     <Space>
@@ -506,12 +701,13 @@ const HotelDetailsPage = () => {
                     {listing.amenities && listing.amenities.length > 0 ? (
                       listing.amenities.map((amenity, index) => {
                         // Clean the amenity text
-                        const cleanAmenity = typeof amenity === 'string' 
-                          ? amenity.trim().replace(/^\/+|\/+$/g, '')
-                          : '';
-                          
+                        const cleanAmenity =
+                          typeof amenity === "string"
+                            ? amenity.trim().replace(/^\/+|\/+$/g, "")
+                            : "";
+
                         if (!cleanAmenity) return null;
-                        
+
                         return (
                           <Col key={index} xs={12} md={8} lg={6}>
                             <div className="bg-blue-50 hover:bg-blue-100 transition-colors rounded-lg p-3 h-full flex items-center">
@@ -531,7 +727,7 @@ const HotelDetailsPage = () => {
                       </Col>
                     )}
                   </Row>
-                  
+
                   {/* Tags Section */}
                   {listing.tags && listing.tags.length > 0 && (
                     <>
@@ -542,18 +738,19 @@ const HotelDetailsPage = () => {
                         </Space>
                       </Divider>
                       <div className="mb-6 flex flex-wrap gap-2">
-                        {listing.tags.map(tag => {
+                        {listing.tags.map((tag) => {
                           // Clean the tag text to remove unwanted characters
-                          const cleanTag = typeof tag === 'string' 
-                            ? tag.trim().replace(/^\/+|\/+$|[\[\]]/g, '')
-                            : '';
-                            
+                          const cleanTag =
+                            typeof tag === "string"
+                              ? tag.trim().replace(/^\/+|\/+$|\[\]]/g, "")
+                              : "";
+
                           if (!cleanTag) return null;
-                          
+
                           return (
-                            <Tag 
-                              key={cleanTag} 
-                              color="blue" 
+                            <Tag
+                              key={cleanTag}
+                              color="blue"
                               className="mr-0 mb-0 py-1.5 px-3 text-sm rounded-full"
                             >
                               {cleanTag}
@@ -571,20 +768,27 @@ const HotelDetailsPage = () => {
                     <div className="bg-white rounded-lg overflow-hidden">
                       <div className="p-4 border-b bg-blue-50">
                         <Title level={5} className="mb-0 flex items-center">
-                          <FiClock className="mr-2 text-blue-600" /> Business Hours
+                          <FiClock className="mr-2 text-blue-600" /> Business
+                          Hours
                         </Title>
                       </div>
                       <div className="p-4">
                         <div className="space-y-3">
                           {businessHours.map((item, index) => (
-                            <div 
-                              key={index} 
+                            <div
+                              key={index}
                               className={`flex justify-between pb-2 ${
-                                index < businessHours.length - 1 ? 'border-b border-gray-100' : ''
+                                index < businessHours.length - 1
+                                  ? "border-b border-gray-100"
+                                  : ""
                               }`}
                             >
-                              <Text strong className="capitalize">{item.day}</Text>
-                              <Text className="font-medium text-blue-600">{item.hours}</Text>
+                              <Text strong className="capitalize">
+                                {item.day}
+                              </Text>
+                              <Text className="font-medium text-blue-600">
+                                {item.hours}
+                              </Text>
                             </div>
                           ))}
                         </div>
@@ -596,14 +800,16 @@ const HotelDetailsPage = () => {
                 {/* Location Tab */}
                 <TabPane tab="Location" key="location">
                   <div className="bg-white p-4 rounded">
-                    <Title level={5} className="mb-4">Location</Title>
+                    <Title level={5} className="mb-4">
+                      Location
+                    </Title>
                     <div className="mb-4">
                       <EnvironmentOutlined className="text-blue-500 mr-2" />
                       <Text>{listing.location}</Text>
                     </div>
-                    
+
                     {/* Map component */}
-                    <MapComponent 
+                    <MapComponent
                       coordinates={coordinates}
                       name={listing.name}
                       location={listing.location}
@@ -613,62 +819,81 @@ const HotelDetailsPage = () => {
               </Tabs>
             </Card>
           </Col>
-          
+
           {/* Sidebar */}
           <Col xs={24} xl={8}>
             <div className="sticky space-y-4 top-24">
               {/* Listing Info Card */}
-              <Card 
-                bordered={false} 
-                className="shadow-md rounded-lg"
-                title={<Title level={4} className="my-0">Listing Details</Title>}
+              <Card
+                bordered={false}
+                className="shadow-md mt-10  rounded-lg"
+                title={
+                  <Title level={4} className="my-0">
+                    Listing Details
+                  </Title>
+                }
               >
                 <div className="p-1">
                   <div className="flex justify-between items-center mb-3">
                     <Text className="text-gray-600">Category:</Text>
-                    <Text strong>{listing.category?.name || 'Uncategorized'}</Text>
+                    <Text strong>
+                      {listing.category?.name || "Uncategorized"}
+                    </Text>
                   </div>
-                  
+
                   <div className="flex justify-between items-center mb-3">
                     <Text className="text-gray-600">Price:</Text>
-                    <Text strong className="text-lg text-blue-600">₹{listing.price || 'Contact for pricing'}</Text>
+                    <Text strong className="text-lg text-blue-600">
+                      ₹{listing.price || "Contact for pricing"}
+                    </Text>
                   </div>
-                  
+
                   <div className="flex justify-between items-center mb-3">
                     <Text className="text-gray-600">Rating:</Text>
                     <Space>
-                      <Rate disabled defaultValue={listing.rating || 4.5} allowHalf className="text-sm" />
+                      <Rate
+                        disabled
+                        defaultValue={listing.rating || 4.5}
+                        allowHalf
+                        className="text-sm"
+                      />
                       <Text type="secondary">{listing.rating || 4.5}</Text>
                     </Space>
                   </div>
-                  
+
                   {listing.isFeatured && (
                     <div className="mb-3">
-                      <Tag color="gold" className="w-full text-center py-1">Featured Listing</Tag>
+                      <Tag color="gold" className="w-full text-center py-1">
+                        Featured Listing
+                      </Tag>
                     </div>
                   )}
-                  
+
                   <Divider className="my-4" />
-                  
+
                   <div className="mb-4">
-                    <Text strong className="block mb-2">Quick Actions</Text>
-                    <Button 
-                      type="primary" 
-                      block 
+                    <Text strong className="block mb-2">
+                      Quick Actions
+                    </Text>
+                    <Button
+                      type="primary"
+                      block
                       className="bg-blue-600 hover:bg-blue-700 mb-2"
                       onClick={() => {
                         form.setFieldsValue({
-                          message: `I'm interested in "${listing.name}" and would like more information.`
+                          message: `I'm interested in "${listing.name}" and would like more information.`,
                         });
-                        document.getElementById('contact-form')?.scrollIntoView({ behavior: 'smooth' });
+                        document
+                          .getElementById("contact-form")
+                          ?.scrollIntoView({ behavior: "smooth" });
                       }}
                     >
                       Request Information
                     </Button>
-                    
+
                     {listing.contactPhone && (
-                      <Button 
-                        block 
+                      <Button
+                        block
                         onClick={() => {
                           window.location.href = `tel:${listing.contactPhone}`;
                           message.info(`Calling ${listing.contactPhone}`);
@@ -680,12 +905,16 @@ const HotelDetailsPage = () => {
                   </div>
                 </div>
               </Card>
-              
+
               {/* Contact Information Card (without owner details) */}
-              <Card 
-                bordered={false} 
+              <Card
+                bordered={false}
                 className="shadow-md rounded-lg"
-                title={<Title level={4} className="my-0">Contact Information</Title>}
+                title={
+                  <Title level={4} className="my-0">
+                    Contact Information
+                  </Title>
+                }
               >
                 {/* Public Contact Information */}
                 <div className="space-y-3">
@@ -695,30 +924,35 @@ const HotelDetailsPage = () => {
                       <Text copyable>{listing.contactPhone}</Text>
                     </div>
                   )}
-                  
+
                   {listing.contactEmail && (
                     <div className="flex items-center">
                       <MailOutlined className="text-blue-500 mr-3" />
                       <Text copyable>{listing.contactEmail}</Text>
                     </div>
                   )}
-                  
+
                   {listing.website && (
                     <div className="flex items-center">
                       <GlobalOutlined className="text-blue-500 mr-3" />
-                      <a href={listing.website.startsWith('http') ? listing.website : `https://${listing.website}`} 
-                         target="_blank" 
-                         rel="noopener noreferrer"
-                         className="text-blue-600 hover:underline"
+                      <a
+                        href={
+                          listing.website.startsWith("http")
+                            ? listing.website
+                            : `https://${listing.website}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
                       >
-                        {listing.website.replace(/^https?:\/\//i, '')}
+                        {listing.website.replace(/^https?:\/\//i, "")}
                       </a>
                     </div>
                   )}
                 </div>
-                
+
                 <Divider />
-                
+
                 {/* Contact Form */}
                 <Form
                   id="contact-form"
@@ -729,18 +963,20 @@ const HotelDetailsPage = () => {
                   <Form.Item
                     name="message"
                     label="Send a message"
-                    rules={[{ required: true, message: 'Please enter your message!' }]}
+                    rules={[
+                      { required: true, message: "Please enter your message!" },
+                    ]}
                   >
                     <Input.TextArea
                       rows={4}
                       placeholder="I'm interested in this listing..."
                     />
                   </Form.Item>
-                  
+
                   <Form.Item>
-                    <Button 
-                      type="primary" 
-                      htmlType="submit" 
+                    <Button
+                      type="primary"
+                      htmlType="submit"
                       block
                       className="bg-blue-600 hover:bg-blue-700"
                     >
@@ -749,7 +985,7 @@ const HotelDetailsPage = () => {
                   </Form.Item>
                 </Form>
               </Card>
-              
+
               {/* Related Listings Card - Uncomment if needed */}
               {/* <Card 
                 bordered={false} 
@@ -793,11 +1029,11 @@ const HotelDetailsPage = () => {
             preview={{
               visible: imagePreviewVisible,
               onVisibleChange: (visible) => setImagePreviewVisible(visible),
-              current: activeImage
+              current: activeImage,
             }}
           >
             {images.map((img, index) => (
-              <Image key={index} src={img} style={{ display: 'none' }} />
+              <Image key={index} src={img} style={{ display: "none" }} />
             ))}
           </Image.PreviewGroup>
         )}
