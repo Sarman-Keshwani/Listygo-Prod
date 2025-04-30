@@ -29,30 +29,57 @@ const HotelCard = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [priceFilter, setPriceFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch hotels from API
-  useEffect(() => {
-    const fetchHotels = async () => {
-      try {
+  // Fetch hotels from API with pagination
+  const fetchHotels = async (pageNum = 1, append = false) => {
+    try {
+      if (pageNum === 1) {
         setLoading(true);
-        const response = await axios.get(`${API_URL}/listings`);
-        
-        if (response.data.success) {
-          setHotels(response.data.data);
-        } else {
-          setError('Failed to fetch hotels');
-        }
-      } catch (err) {
-        console.error('Error fetching hotels:', err);
-        setError('An error occurred while fetching hotels. Please try again later.');
-      } finally {
-        setLoading(false);
+      } else {
+        setLoadingMore(true);
       }
-    };
+      
+      const response = await axios.get(`${API_URL}/listings?page=${pageNum}&limit=10`);
+      
+      if (response.data.success) {
+        const newHotels = response.data.data;
+        
+        if (newHotels.length === 0) {
+          setHasMore(false);
+        } else {
+          if (append) {
+            setHotels(prev => [...prev, ...newHotels]);
+          } else {
+            setHotels(newHotels);
+          }
+          setPage(pageNum);
+        }
+      } else {
+        setError('Failed to fetch hotels');
+      }
+    } catch (err) {
+      console.error('Error fetching hotels:', err);
+      setError('An error occurred while fetching hotels. Please try again later.');
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
 
+  // Initial load
+  useEffect(() => {
     fetchHotels();
   }, []);
+
+  const loadMoreHotels = () => {
+    if (!loadingMore && hasMore) {
+      fetchHotels(page + 1, true);
+    }
+  };
 
   // Filter hotels based on search query and price filter
   const filteredHotels = hotels.filter(hotel => {
@@ -93,14 +120,14 @@ const HotelCard = () => {
             </Paragraph>
           </Col>
           <Col xs={24} md={8} className="text-right">
-            <Button 
+            {/* <Button 
               type="link" 
               icon={<ArrowRightOutlined />} 
               onClick={() => navigate('/listings')}
               className="text-blue-600 hover:text-blue-700"
             >
               See all listings
-            </Button>
+            </Button> */}
           </Col>
         </Row>
 
@@ -150,7 +177,7 @@ const HotelCard = () => {
         )}
 
         {/* Hotel Grid */}
-        {loading ? (
+        {loading && page === 1 ? (
           <Row className='mt-10' gutter={[24, 24]}>
             {[1, 2, 3, 4].map((item) => (
               <Col xs={24} lg={12} key={`skeleton-${item}`}>
@@ -187,52 +214,53 @@ const HotelCard = () => {
             </Empty>
           </div>
         ) : (
-          <Row gutter={[24, 24]}>
-            {filteredHotels.map((hotel) => (
-              <Col xs={24} lg={12} key={hotel._id}>
-                <motion.div
-                  whileHover={{ y: -5 }}
-                  transition={{ duration: 0.3 }}
-                  className='mt-5'
-                >
-                  <Badge.Ribbon text={`₹${hotel.price}`} color="blue">
-                    <Card 
-                      hoverable
-                      className="overflow-hidden"
-                      onClick={() => handleHotelClick(hotel._id)}
-                    >
-                      <Row gutter={16}>
-                        <Col xs={24} sm={10} className="mb-4 sm:mb-0">
-                          <div className="relative">
-                            <img
-                              src={Array.isArray(hotel.images) ? hotel.images[0] : hotel.image || 'https://via.placeholder.com/300x200?text=No+Image'}
-                              alt={hotel.name}
-                              className="w-full h-48 object-cover rounded-lg"
-                              onError={(e) => {
-                                e.target.onerror = null;
-                                e.target.src = 'https://via.placeholder.com/300x200?text=Error+Loading+Image';
-                              }}
-                            />
-                            <div className="absolute top-2 right-2">
-                              <Tag color="gold" className="flex items-center">
-                                <StarOutlined className="mr-1" />
-                                {hotel.rating || '4.5'}
-                              </Tag>
+          <>
+            <Row gutter={[24, 24]}>
+              {filteredHotels.map((hotel) => (
+                <Col xs={24} lg={12} key={hotel._id}>
+                  <motion.div
+                    whileHover={{ y: -5 }}
+                    transition={{ duration: 0.3 }}
+                    className='mt-5'
+                  >
+                    <Badge.Ribbon text={`₹${hotel.price}`} color="blue">
+                      <Card 
+                        hoverable
+                        className="overflow-hidden"
+                        onClick={() => handleHotelClick(hotel._id)}
+                      >
+                        <Row gutter={16}>
+                          <Col xs={24} sm={10} className="mb-4 sm:mb-0">
+                            <div className="relative">
+                              <img
+                                src={Array.isArray(hotel.images) ? hotel.images[0] : hotel.image || 'https://via.placeholder.com/300x200?text=No+Image'}
+                                alt={hotel.name}
+                                className="w-full h-48 object-cover rounded-lg"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = 'https://via.placeholder.com/300x200?text=Error+Loading+Image';
+                                }}
+                              />
+                              <div className="absolute top-2 right-2">
+                                <Tag color="gold" className="flex items-center">
+                                  <StarOutlined className="mr-1" />
+                                  {hotel.rating || '4.5'}
+                                </Tag>
+                              </div>
                             </div>
-                          </div>
-                        </Col>
-                        
-                        <Col xs={24} sm={14}>
-                          <Title level={4} className="mb-1">{hotel.name}</Title>
+                          </Col>
                           
-                          <Space className="mb-4">
-                            <EnvironmentOutlined className="text-blue-500" />
-                            <Text type="secondary">{hotel.location}</Text>
-                          </Space>
-                          
-                          <Divider className="my-3" />
-                          
-                          <Row gutter={[16, 12]}>
+                          <Col xs={24} sm={14}>
+                            <Title level={4} className="mb-1">{hotel.name}</Title>
+                            
+                            <Space className="mb-4">
+                              <EnvironmentOutlined className="text-blue-500" />
+                              <Text type="secondary">{hotel.location}</Text>
+                            </Space>
+                            
+                            <Divider className="my-3" />
+                            
+                            <Row gutter={[16, 12]}>
   {hotel.bedrooms && (
     <Col span={12}>
       <Space>
@@ -283,51 +311,54 @@ const HotelCard = () => {
     </Col>
   )}
 </Row>
-                          
-                          <Divider className="my-3" />
-                          
-                          <div className="flex justify-between items-center">
-                            {hotel.addedBy && (
-                              <Text type="secondary" className="text-sm">
-                                Added by {typeof hotel.addedBy === 'object' ? hotel.addedBy.name : 'Admin'}
-                              </Text>
-                            )}
-                            <Button 
-                              type="primary" 
-                              size="small"
-                              className="bg-blue-600 hover:bg-blue-700"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleHotelClick(hotel._id);
-                              }}
-                            >
-                              View Details
-                            </Button>
-                          </div>
-                        </Col>
-                      </Row>
-                    </Card>
-                  </Badge.Ribbon>
-                </motion.div>
-              </Col>
-            ))}
-          </Row>
+                            
+                            <Divider className="my-3" />
+                            
+                            <div className="flex justify-between items-center">
+                              {hotel.addedBy && (
+                                <Text type="secondary" className="text-sm">
+                                  Added by {typeof hotel.addedBy === 'object' ? hotel.addedBy.name : 'Admin'}
+                                </Text>
+                              )}
+                              <Button 
+                                type="primary" 
+                                size="small"
+                                className="bg-blue-600 hover:bg-blue-700"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleHotelClick(hotel._id);
+                                }}
+                              >
+                                View Details
+                              </Button>
+                            </div>
+                          </Col>
+                        </Row>
+                      </Card>
+                    </Badge.Ribbon>
+                  </motion.div>
+                </Col>
+              ))}
+            </Row>
+            
+            {/* Load More Button */}
+            {hasMore && !loading && !error && (
+              <div className="mt-8 text-center">
+                <Button
+                  type="primary"
+                  size="large"
+                  loading={loadingMore}
+                  onClick={loadMoreHotels}
+                  className="bg-blue-600 hover:bg-blue-700 px-8 h-12"
+                >
+                  Load More Listings
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
-        {/* Show More Button - only shown when hotels exist and not filtered */}
-        {/* {!loading && !error && filteredHotels.length > 0 && (
-          <div className="mt-10 text-center">
-            <Button
-              type="primary"
-              size="large"
-              icon={<HomeOutlined />}
-              onClick={() => navigate('/listings')}
-              className="bg-blue-600 hover:bg-blue-700 px-8 h-12"
-            >
-              View All Hotels
-            </Button>
-          </div>
-        )} */}
+      
       </div>
     </div>
   );

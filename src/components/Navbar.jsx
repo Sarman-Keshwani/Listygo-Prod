@@ -121,9 +121,9 @@ const Navbar = () => {
   // User dropdown menu items
   const userMenuItems = (
     <AntMenu>
-      <AntMenu.Item key="1" icon={<User size={14} />}>
+      {/* <AntMenu.Item key="1" icon={<User size={14} />}>
         <Link to="/account">My Profile</Link>
-      </AntMenu.Item>
+      </AntMenu.Item> */}
       {isAdmin && (
         <AntMenu.Item key="2" icon={<Briefcase size={14} />}>
           <Link to="/admin/dashboard">Vendor Dashboard</Link>
@@ -212,9 +212,9 @@ const Navbar = () => {
               </Link>
               
               {/* Dynamic Categories Dropdown */}
-              <Dropdown
-                overlay={categoryMenu}
-                placement="bottomCenter"
+              <Dropdown 
+                menu={{ items: categoryMenu }} 
+                placement="bottom"
               >
                 <div className="cursor-pointer transition duration-200 hover:text-blue-600 py-2 relative flex items-center gap-1">
                   Categories <ChevronDown size={16} />
@@ -292,7 +292,7 @@ const Navbar = () => {
                         {userData?.name || "User"}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {userData?.role === "admin" ? "Vendor" : userData?.role || "User"}
+                        {userData?.role === "admin" ? "Admin" : userData?.role || "User"}
                       </div>
                     </div>
                     <ChevronDown size={16} className="text-gray-500" />
