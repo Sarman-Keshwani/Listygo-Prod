@@ -3,6 +3,10 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Hotel, Home, ShoppingBag, ChevronDown, Search, MapPin } from "lucide-react"; // Added MapPin
 import { Link, useNavigate} from "react-router-dom"; // Import Link for routing
+import axios from "axios"; // Import axios for API requests
+
+// API URL from environment variables
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const slides = [
   {
@@ -57,8 +61,27 @@ export default function HeaderCarouselSection() {
     const saved = localStorage.getItem('recentSearches');
     return saved ? JSON.parse(saved) : [];
   });
+  const [categories, setCategories] = React.useState([]);
+  const [loadingCategories, setLoadingCategories] = React.useState(false);
 
   const length = slides.length;
+
+  // Fetch categories from API
+  React.useEffect(() => {
+    const fetchCategories = async () => {
+      setLoadingCategories(true);
+      try {
+        const response = await axios.get(`${API_URL}/categories`);
+        setCategories(response.data.data || []);
+      } catch (error) {
+        console.error("Failed to fetch categories:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   const nextSlide = React.useCallback(() => setCurrent((prev) => (prev + 1) % length), [length]);
   const prevSlide = () => setCurrent((current - 1 + length) % length);
@@ -96,13 +119,18 @@ export default function HeaderCarouselSection() {
     handleGeoLocation();
   }, [handleGeoLocation]);
 
-  // Search input and suggestions logic
+  // Search input and suggestions logic - updated to use fetched categories
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchInput(val);
     if (val.length > 1) {
+      // If we have categories from the database, use those
+      const categoryNames = categories.length > 0 
+        ? categories.map(cat => cat.name) 
+        : POPULAR_CATEGORIES;
+        
       setSuggestions(
-        POPULAR_CATEGORIES.filter((item) =>
+        categoryNames.filter((item) =>
           item.toLowerCase().includes(val.toLowerCase())
         )
       );
@@ -213,20 +241,30 @@ export default function HeaderCarouselSection() {
         >
           <div className="flex flex-col md:flex-row items-stretch bg-white rounded-xl overflow-hidden shadow-lg border border-gray-300">
 
-            {/* Category Dropdown Section */}
+            {/* Category Dropdown Section - Updated to use fetched categories */}
             <div className="relative border-b border-gray-300 md:border-b-0 md:border-r w-full md:w-auto shrink-0">
               <select
                 className="w-full md:w-auto appearance-none cursor-pointer focus:outline-none bg-transparent text-gray-700 pl-4 pr-10 py-3 text-sm md:text-base"
-                value={selectedCategory} // Controlled component
-                onChange={handleCategoryChange} // Handle change
+                value={selectedCategory}
+                onChange={handleCategoryChange}
                 aria-label="Select Category"
               >
                 <option value="all">All Categories</option>
-                {slides.map((slide, i) => (
-                  <option key={i} value={slide.category.toLowerCase()}>
-                    {slide.category}
-                  </option>
-                ))}
+                {loadingCategories ? (
+                  <option disabled>Loading...</option>
+                ) : categories.length > 0 ? (
+                  categories.map((category) => (
+                    <option key={category._id} value={category._id}>
+                      {category.name}
+                    </option>
+                  ))
+                ) : (
+                  slides.map((slide, i) => (
+                    <option key={i} value={slide.category.toLowerCase()}>
+                      {slide.category}
+                    </option>
+                  ))
+                )}
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                 <ChevronDown size={18} className="text-gray-500" />

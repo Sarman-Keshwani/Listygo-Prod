@@ -62,11 +62,24 @@ import {
   message,
 } from "antd";
 import dayjs from "dayjs";
+import { prepareHoursForSubmission } from "../utils/hourUtils";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 const { Option } = Select;
 const { TextArea } = Input;
 const { TabPane } = Tabs;
+
+// Add the sanitizeAmenityText function outside the component
+const sanitizeAmenityText = (amenity) => {
+  if (!amenity) return "";
+  // First convert to string if not already
+  let text = String(amenity);
+  // Remove any square brackets and quotes that might be in the string
+  text = text.replace(/^\["|"\]$|^"|"$|^\[|\]$/g, "");
+  // Clean any leading/trailing slashes
+  text = text.trim().replace(/^\/+|\/+$/g, "");
+  return text;
+};
 
 const AdminListings = () => {
   const navigate = useNavigate();
@@ -79,9 +92,12 @@ const AdminListings = () => {
   // Destructure Text from Typography
   const { Text } = Typography;
   const [listings, setListings] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState([]); // This was missing initialization
   const [loading, setLoading] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [editingListingId, setEditingListingId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(
     categoryFilter || null
@@ -103,6 +119,28 @@ const AdminListings = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewUrls, setPreviewUrls] = useState([]); // Added for multiple image uploads
   const [attributeString, setAttributeString] = useState(""); // New state for comma-separated list
+  
+  // Add state for saved hours templates that was missing (causing the error)
+  const [savedHoursTemplates, setSavedHoursTemplates] = useState(() => {
+    // Try to load saved hours from localStorage
+    try {
+      const saved = localStorage.getItem('savedBusinessHours');
+      return saved ? JSON.parse(saved) : {
+        standard: null,
+        extended: null,
+        allDay: null,
+        lastUsed: null
+      };
+    } catch (e) {
+      console.error('Error loading saved hours:', e);
+      return {
+        standard: null,
+        extended: null,
+        allDay: null,
+        lastUsed: null
+      };
+    }
+  });
 
   const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -303,21 +341,37 @@ const AdminListings = () => {
     setFilteredCities(citiesInState);
   };
 
-  const fetchListings = async () => {
-    setLoading(true);
+  const fetchListings = async (pageNum = 1, append = false) => {
+    if (pageNum === 1) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
       const token = localStorage.getItem("token");
-      let url = `${API_URL}/listings`;
+      let url = `${API_URL}/listings?page=${pageNum}&limit=10`;
 
       if (selectedCategory) {
-        url = `${API_URL}/listings/category/${selectedCategory}`;
+        url = `${API_URL}/listings/category/${selectedCategory}?page=${pageNum}&limit=10`;
       }
 
       const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setListings(response.data.data);
+      const newListings = response.data.data;
+
+      if (newListings.length === 0) {
+        setHasMore(false);
+      } else {
+        if (append) {
+          setListings((prev) => [...prev, ...newListings]);
+        } else {
+          setListings(newListings);
+        }
+        setPage(pageNum);
+      }
     } catch (error) {
       console.error("Error fetching listings:", error);
       notification.error({
@@ -326,11 +380,21 @@ const AdminListings = () => {
       });
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
+  const loadMoreListings = () => {
+    if (!loadingMore && hasMore) {
+      fetchListings(page + 1, true);
+    }
+  };
+
+  // Update the category change handler to reset pagination
   const handleCategoryChange = (categoryId) => {
     setSelectedCategory(categoryId);
+    setPage(1);
+    setHasMore(true);
     // Update URL with category parameter without reloading the page
     const newUrl = categoryId
       ? `${location.pathname}?category=${categoryId}`
@@ -361,6 +425,40 @@ const AdminListings = () => {
     const newImages = [...images];
     newImages[index] = value;
     setImages(newImages);
+  };
+
+  // Add the missing handleAddAttribute function
+  const handleAddAttribute = () => {
+    if (newAttributeKey.trim() && newAttributeValue.trim()) {
+      // Create sanitized key and value
+      const key = newAttributeKey.trim();
+      const value = newAttributeValue.trim();
+
+      // Create a new attributes object to avoid reference issues
+      const newAttributeValues = { ...attributeValues };
+      newAttributeValues[key] = value;
+
+      // Update state
+      setAttributeValues(newAttributeValues);
+      setAttributeKeys([...new Set([...attributeKeys, key])]);
+
+      // Clear input fields
+      setNewAttributeKey("");
+      setNewAttributeValue("");
+
+      // Show success notification
+      notification.success({
+        message: "Attribute Added",
+        description: `The attribute "${key}" has been added successfully.`,
+        duration: 2,
+      });
+    } else {
+      notification.error({
+        message: "Invalid Input",
+        description: "Both attribute name and value are required.",
+        duration: 2,
+      });
+    }
   };
 
   // Fix the handleFormSubmit function to properly format data
@@ -394,7 +492,7 @@ const AdminListings = () => {
       // Set image replacement strategy
       fd.append("replaceImages", editingListingId ? "false" : "true");
 
-      // Add basic fields - simple values
+      // Add basic fields with special emphasis on locationLink
       const fieldsToAdd = [
         "name",
         "category",
@@ -413,6 +511,11 @@ const AdminListings = () => {
         }
       });
 
+      // Handle locationLink specially to ensure it's included
+      // Always include locationLink field even if it's empty
+      fd.append("locationLink", values.locationLink || "");
+      console.log(`⭐ Added locationLink to form data:`, values.locationLink || "");
+
       // Add tags
       if (values.tags && values.tags.length > 0) {
         const sanitizedTags = values.tags
@@ -423,22 +526,20 @@ const AdminListings = () => {
 
       // Add amenities as direct array (not JSON string)
       if (amenities.length > 0) {
-        // Clean amenities to ensure proper format
+        // Clean amenities properly to prevent the [////] issue
         const cleanAmenities = amenities
           .map((amenity) => {
-            // If it's not a string, convert to string
             if (typeof amenity !== "string") {
               return String(amenity).trim();
             }
-            // Remove any quotes, brackets, etc.
-            return amenity?.replace(/[\\]"'\\]/g, "").trim();
+            // More aggressive cleaning to remove all unwanted characters
+            return amenity.replace(/[\[\]\\/"']/g, "").trim();
           })
           .filter(Boolean);
 
         console.log("Clean amenities being sent:", cleanAmenities);
 
         // IMPORTANT: Don't stringify - pass as direct form field array
-        // FormData can handle arrays with the same key multiple times
         cleanAmenities.forEach((amenity) => {
           fd.append("amenities[]", amenity);
         });
@@ -458,20 +559,11 @@ const AdminListings = () => {
         fd.append("owner[isFeatured]", values.owner.isFeatured || false);
       }
 
-      // Add hours
-      if (values.hours) {
-        const formattedHours = {};
-        Object.entries(values.hours).forEach(([day, times]) => {
-          if (times?.open && times?.close) {
-            formattedHours[day] = {
-              open: times.open.format("HH:mm"),
-              close: times.close.format("HH:mm"),
-            };
-          }
-        });
-        if (Object.keys(formattedHours).length > 0) {
-          fd.append("hours", JSON.stringify(formattedHours));
-        }
+      // Add hours using our utility function
+      const formattedHours = prepareHoursForSubmission(values);
+      if (formattedHours) {
+        fd.append("hours", JSON.stringify(formattedHours));
+        console.log("Saving business hours:", formattedHours);
       }
 
       // Handle images - ensure we only process valid images
@@ -518,12 +610,10 @@ const AdminListings = () => {
       });
 
       notification.success({
-        message: `Listing ${
-          editingListingId ? "updated" : "created"
-        } successfully!`,
-        description: `${values.name} has been ${
-          editingListingId ? "updated" : "created"
-        }.`,
+        message: `Listing ${editingListingId ? "updated" : "created"
+          } successfully!`,
+        description: `${values.name} has been ${editingListingId ? "updated" : "created"
+          }.`,
       });
 
       resetForm();
@@ -732,7 +822,7 @@ const AdminListings = () => {
     }
   };
 
-  // Add this function to your component to parse attributes from backend
+  // Add this function to parse attributes from backend
   // Replace your current parseAttributes function with this one
   // Replace the parseAttributes function with this improved version
   const parseAttributes = (attributesString) => {
@@ -808,18 +898,30 @@ const AdminListings = () => {
                 return parsed[0];
               }
             }
-            // Otherwise just return the string itself, cleaned up
-            return amenity?.replace(/[\\]"']/g, "").trim();
+            // Clean up the amenity by removing brackets, slashes and quotes
+            return amenity.replace(/[\[\]\\/"']/g, "").trim();
           } catch {
-            return amenity?.replace(/[\\]"']/g, "").trim();
+            // If parsing fails, just clean up the string
+            return amenity.replace(/[\[\]\\/"']/g, "").trim();
           }
         }
-        return String(amenity);
+        return String(amenity).replace(/[\[\]\\/"']/g, "").trim();
       })
       .filter(Boolean);
   };
-  const resetForm = () => {
+  const resetForm = (preserveHours = false) => {
     form.resetFields();
+
+    // If preserving hours, immediately set them back after reset
+    if (preserveHours && savedHoursTemplates.lastUsed) {
+      const lastHours = loadHoursTemplate('lastUsed');
+      if (lastHours) {
+        setTimeout(() => {
+          form.setFieldsValue({ hours: lastHours });
+        }, 0);
+      }
+    }
+
     setImages([""]);
     setActiveImagePreview(0);
     setEditingListingId(null);
@@ -838,6 +940,16 @@ const AdminListings = () => {
 
   // Get human-readable category name
   const getCategoryName = (categoryId) => {
+    // Handle different category structures
+    if (!categoryId) return "Uncategorized";
+
+    // If categoryId is an object with _id property
+    if (typeof categoryId === 'object' && categoryId?._id) {
+      const category = categories.find((c) => c._id === categoryId._id);
+      return category ? category.name : "Unknown";
+    }
+
+    // If categoryId is a string (direct ID)
     const category = categories.find((c) => c._id === categoryId);
     return category ? category.name : "Unknown";
   };
@@ -887,7 +999,9 @@ const AdminListings = () => {
       ]}
     >
       <div className="mb-2">
-        <Tag color="blue">{getCategoryName(listing.category._id)}</Tag>
+        <Tag color="blue">
+          {listing.category ? getCategoryName(listing.category) : "Uncategorized"}
+        </Tag>
       </div>
       <h3 className="font-semibold text-lg mb-1 text-blue-700 line-clamp-1">
         {listing.name}
@@ -906,7 +1020,7 @@ const AdminListings = () => {
     </Card>
   );
 
-  // Fix the renderListItem function to include the complete rating component
+  // Fix the renderListItem function to safely handle category
   const renderListItem = (listing) => (
     <Card key={listing._id} className="mb-4">
       <div className="flex flex-col md:flex-row">
@@ -933,7 +1047,7 @@ const AdminListings = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
             <div>
               <Tag color="blue" className="mb-2">
-                {getCategoryName(listing.category._id)}
+                {listing.category ? getCategoryName(listing.category) : "Uncategorized"}
               </Tag>
               <h3 className="font-semibold text-lg mb-1 text-blue-700">
                 {listing.name}
@@ -1154,6 +1268,7 @@ const AdminListings = () => {
                   name="location"
                   label="Location"
                   rules={[{ required: true, message: "Please enter the location" }]}
+
                 >
                   <Input prefix={<FiMapPin />} placeholder="City, Country" />
                 </Form.Item> */}
@@ -1440,19 +1555,23 @@ const AdminListings = () => {
                         onPressEnter={() => {
                           if (newAmenity.trim()) {
                             // Sanitize the amenity before adding
-                            const sanitizedAmenity = newAmenity
-                              .trim()
-                              .replace(/^\/+|\/+$/g, "");
-                            if (
-                              !amenities.some(
-                                (a) =>
-                                  a?.toLowerCase() ===
-                                  sanitizedAmenity.toLowerCase()
-                              )
-                            ) {
+                            const sanitizedAmenity = sanitizeAmenityText(newAmenity);
+
+                            if (sanitizedAmenity && !amenities.some(a => sanitizeAmenityText(a).toLowerCase() === sanitizedAmenity.toLowerCase())) {
                               setAmenities([...amenities, sanitizedAmenity]);
+                              setNewAmenity("");
+                            } else if (!sanitizedAmenity) {
+                              notification.warning({
+                                message: "Invalid Input",
+                                description: "Please enter a valid amenity"
+                              });
+                            } else {
+                              notification.info({
+                                message: "Duplicate",
+                                description: "This amenity is already added"
+                              });
+                              setNewAmenity("");
                             }
-                            setNewAmenity("");
                           }
                         }}
                         prefix={<FiPlus className="text-gray-400" />}
@@ -1463,19 +1582,23 @@ const AdminListings = () => {
                         onClick={() => {
                           if (newAmenity.trim()) {
                             // Sanitize the amenity before adding
-                            const sanitizedAmenity = newAmenity
-                              .trim()
-                              .replace(/^\/+|\/+$/g, "");
-                            if (
-                              !amenities.some(
-                                (a) =>
-                                  a?.toLowerCase() ===
-                                  sanitizedAmenity.toLowerCase()
-                              )
-                            ) {
+                            const sanitizedAmenity = sanitizeAmenityText(newAmenity);
+
+                            if (sanitizedAmenity && !amenities.some(a => sanitizeAmenityText(a).toLowerCase() === sanitizedAmenity.toLowerCase())) {
                               setAmenities([...amenities, sanitizedAmenity]);
+                              setNewAmenity("");
+                            } else if (!sanitizedAmenity) {
+                              notification.warning({
+                                message: "Invalid Input",
+                                description: "Please enter a valid amenity"
+                              });
+                            } else {
+                              notification.info({
+                                message: "Duplicate",
+                                description: "This amenity is already added"
+                              });
+                              setNewAmenity("");
                             }
-                            setNewAmenity("");
                           }
                         }}
                         className="bg-blue-600 hover:bg-blue-700"
@@ -1572,8 +1695,7 @@ const AdminListings = () => {
                                   amenities.filter(
                                     (a) =>
                                       typeof a !== "string" ||
-                                      a.toLowerCase() !==
-                                        item.name.toLowerCase()
+                                      a.toLowerCase() !== item.name.toLowerCase()
                                   )
                                 );
                               }
@@ -1673,6 +1795,8 @@ const AdminListings = () => {
                             sunday: { open: null, close: null },
                           };
                           form.setFieldsValue({ hours: businessHours });
+                          // Save this template
+                          saveHoursTemplate('standard', businessHours);
                         }}
                       >
                         Standard Hours (9-5)
@@ -1713,6 +1837,8 @@ const AdminListings = () => {
                             },
                           };
                           form.setFieldsValue({ hours: extendedHours });
+                          // Save this template
+                          saveHoursTemplate('extended', extendedHours);
                         }}
                       >
                         Extended Hours (8-8)
@@ -1753,6 +1879,8 @@ const AdminListings = () => {
                             },
                           };
                           form.setFieldsValue({ hours: allDayHours });
+                          // Save this template
+                          saveHoursTemplate('allDay', allDayHours);
                         }}
                       >
                         24/7 Hours
@@ -1777,25 +1905,59 @@ const AdminListings = () => {
                       >
                         Clear All
                       </Button>
+
+                      {savedHoursTemplates.lastUsed && (
+                        <Button
+                          type="primary"
+                          ghost
+                          icon={<FiClock />}
+                          onClick={() => {
+                            const lastHours = loadHoursTemplate('lastUsed');
+                            if (lastHours) {
+                              form.setFieldsValue({ hours: lastHours });
+                              notification.success({
+                                message: 'Hours Loaded',
+                                description: 'Your last used business hours template has been loaded.',
+                                duration: 2
+                              });
+                            }
+                          }}
+                        >
+                          Load Last Used
+                        </Button>
+                      )}
                     </div>
 
                     <div className="mb-3">
                       <Text type="secondary">
-                        Quick tip: You can also set custom hours for specific
-                        days below
+                        Quick tip: Hours are automatically saved when you submit the form
                       </Text>
                     </div>
+
+                    {/* Add a button to save current hours configuration */}
+                    <Button 
+                      type="dashed"
+                      className="mb-4"
+                      icon={<FiSave />}
+                      onClick={() => {
+                        const currentHours = form.getFieldValue('hours');
+                        if (currentHours) {
+                          saveHoursTemplate('custom', currentHours);
+                        } else {
+                          notification.warning({
+                            message: 'No Hours Set',
+                            description: 'Please set business hours before saving.',
+                            duration: 2
+                          });
+                        }
+                      }}
+                    >
+                      Save Current Hours As Template
+                    </Button>
                   </div>
 
-                  {[
-                    "monday",
-                    "tuesday",
-                    "wednesday",
-                    "thursday",
-                    "friday",
-                    "saturday",
-                    "sunday",
-                  ].map((day) => (
+                  {/* Keep the days of the week inputs as is */}
+                  {["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => (
                     <Form.Item
                       label={
                         <div className="flex justify-between w-full">
@@ -1807,10 +1969,7 @@ const AdminListings = () => {
                             size="small"
                             onClick={() => {
                               // Apply current day's time to all weekdays
-                              const dayValues = form.getFieldValue([
-                                "hours",
-                                day,
-                              ]);
+                              const dayValues = form.getFieldValue(["hours", day]);
                               if (dayValues?.open && dayValues?.close) {
                                 const weekdays = [
                                   "monday",
@@ -1877,9 +2036,38 @@ const AdminListings = () => {
                   </Form.Item>
 
                   <div className="mt-4">
-                    <h4 className="font-medium mb-2">Common Attributes</h4>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-medium">Common Attributes</h4>
+                      {attributeString && (
+                        <Button
+                          danger
+                          size="small"
+                          icon={<FiTrash2 />}
+                          onClick={() => {
+                            if (window.confirm("Are you sure you want to remove all attributes?")) {
+                              console.log("Clearing all attributes");
+                              // Force form update for the attributes field
+                              form.setFieldsValue({ attributes: "" });
+                              // Reset all state related to attributes
+                              setAttributeString("");
+                              setAttributeKeys([]);
+                              setAttributeValues({});
+                              // Use setTimeout to ensure the state update completes
+                              setTimeout(() => {
+                                notification.success({
+                                  message: "All Attributes Removed",
+                                  description: "All attributes have been removed successfully."
+                                });
+                              }, 100);
+                            }
+                          }}
+                        >
+                          Remove All Attributes
+                        </Button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2 mb-4">
-                      {[
+                      { [
                         "bedrooms",
                         "bathrooms",
                         "wifi",
@@ -1894,7 +2082,7 @@ const AdminListings = () => {
                       ].map((attr) => (
                         <Tag
                           key={attr}
-                          className="py-1 px-2 cursor-pointer"
+                          className="py-1 px-2 cursor-pointer hover:bg-blue-50"
                           onClick={() => {
                             // Check if attribute already exists
                             const currentAttrs = attributeString.split(/,\s*/);
@@ -1914,9 +2102,9 @@ const AdminListings = () => {
                       ))}
                     </div>
 
-                    {attributeString && (
+                    {attributeString.trim() !== "" && (
                       <div className="bg-blue-50 p-4 rounded-lg mt-4">
-                        <h4 className="font-medium mb-2">Current Attributes</h4>
+                        <h4 className="font-medium mb-3">Current Attributes</h4>
                         <div className="flex flex-wrap gap-2">
                           {attributeString
                             .split(/,\s*/)
@@ -1926,12 +2114,17 @@ const AdminListings = () => {
                                 key={i}
                                 closable
                                 onClose={() => {
-                                  // Remove this attribute
                                   const attrs = attributeString
                                     .split(/,\s*/)
                                     .filter((a) => a !== attr);
                                   setAttributeString(attrs.join(", "));
+                                  notification.success({
+                                    message: "Attribute Removed",
+                                    description: `"${attr}" attribute has been removed.`,
+                                    duration: 2
+                                  });
                                 }}
+                                className="py-1.5 px-3 bg-white border border-blue-200"
                               >
                                 {attr}
                               </Tag>
@@ -1970,11 +2163,12 @@ const AdminListings = () => {
         </Drawer>
 
         {/* Listings Display */}
-        {loading ? (
+        {loading && page === 1 ? (
           <div className="flex justify-center items-center py-20">
             <Spin size="large" />
           </div>
         ) : listings.length > 0 ? (
+          <>
           <div
             className={
               viewMode === "grid"
@@ -1986,6 +2180,22 @@ const AdminListings = () => {
               ? listings.map((listing) => renderGridItem(listing))
               : listings.map((listing) => renderListItem(listing))}
           </div>
+          
+          {/* Load More Button */}
+          {hasMore && (
+            <div className="mt-8 text-center">
+              <Button
+                type="primary"
+                size="large"
+                loading={loadingMore}
+                onClick={loadMoreListings}
+                className="bg-blue-600 hover:bg-blue-700 px-8 h-12"
+              >
+                Load More Listings
+              </Button>
+            </div>
+          )}
+          </>
         ) : (
           <Empty
             description={

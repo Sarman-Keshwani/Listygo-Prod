@@ -53,6 +53,8 @@ import {
 } from "react-icons/md";
 import { FiMaximize2 } from "react-icons/fi";
 import dayjs from "dayjs";
+import { formatBusinessHours } from "../utils/hourUtils";
+import { fetchListingHours } from "../services/adminService";
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -68,7 +70,8 @@ const ListingDetailsPage = () => {
   const [activeImage, setActiveImage] = useState(0);
   const [form] = Form.useForm();
   const carouselRef = useRef(null);
-
+  const [businessHours, setBusinessHours] = useState(null);
+  
   useEffect(() => {
     const fetchListing = async () => {
       try {
@@ -94,6 +97,23 @@ const ListingDetailsPage = () => {
       fetchListing();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (listing && listing._id) {
+      // Fetch business hours data
+      const getBusinessHours = async () => {
+        try {
+          const hoursData = await fetchListingHours(listing._id);
+          const formattedHours = formatBusinessHours(hoursData);
+          setBusinessHours(formattedHours);
+        } catch (error) {
+          console.error("Error fetching business hours:", error);
+        }
+      };
+      
+      getBusinessHours();
+    }
+  }, [listing]);
 
   // Handle booking or contact
   const handleContact = async (values) => {
@@ -143,38 +163,27 @@ const ListingDetailsPage = () => {
     }
   };
 
-  // Format business hours display
-  const formatBusinessHours = () => {
-    if (!listing || !listing.hours) return null;
-
-    const days = [
-      "monday",
-      "tuesday",
-      "wednesday",
-      "thursday",
-      "friday",
-      "saturday",
-      "sunday",
-    ];
-    const formattedHours = [];
-
-    for (const day of days) {
-      if (
-        listing.hours[day] &&
-        listing.hours[day].open &&
-        listing.hours[day].close
-      ) {
-        formattedHours.push({
-          day: day.charAt(0).toUpperCase() + day.slice(1),
-          hours: `${listing.hours[day].open} - ${listing.hours[day].close}`,
-        });
-      }
+  // Example of how to render the business hours in the UI
+  const renderBusinessHours = () => {
+    if (!businessHours || businessHours.length === 0) {
+      return (
+        <div className="text-gray-500 italic">
+          Business hours not available
+        </div>
+      );
     }
 
-    return formattedHours;
+    return (
+      <ul className="space-y-2">
+        {businessHours.map((item, index) => (
+          <li key={index} className="flex justify-between">
+            <span className="font-medium">{item.day}</span>
+            <span className="text-gray-600">{item.hours}</span>
+          </li>
+        ))}
+      </ul>
+    );
   };
-
-  const businessHours = formatBusinessHours();
 
   if (loading) {
     return (
@@ -386,6 +395,38 @@ const ListingDetailsPage = () => {
                   <Paragraph className="text-gray-600">
                     {listing.description || "No description available."}
                   </Paragraph>
+
+                  {/* Business Hours Section */}
+                  {businessHours && businessHours.length > 0 && (
+                    <>
+                      <Divider orientation="left">
+                        <Space>
+                          <CalendarOutlined />
+                          <span>Business Hours</span>
+                        </Space>
+                      </Divider>
+                      
+                      <div className="mb-6 bg-blue-50 p-4 rounded-lg">
+                        <Row gutter={[16, 16]}>
+                          {businessHours.map((item, index) => (
+                            <Col xs={24} sm={12} md={8} key={index}>
+                              <Card 
+                                size="small" 
+                                className="border-0 bg-transparent shadow-none h-full"
+                              >
+                                <div className="flex justify-between items-center">
+                                  <Text strong className="text-gray-700">{item.day}:</Text>
+                                  <Text className={item.hours === 'Closed' ? 'text-red-500' : 'text-green-600'}>
+                                    {item.hours}
+                                  </Text>
+                                </div>
+                              </Card>
+                            </Col>
+                          ))}
+                        </Row>
+                      </div>
+                    </>
+                  )}
 
                   {/* Attributes Section - Only using string format */}
                   {listing.attributes && (
