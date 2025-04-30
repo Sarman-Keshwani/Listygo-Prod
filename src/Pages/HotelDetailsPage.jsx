@@ -976,11 +976,38 @@ const HotelDetailsPage = () => {
                   <Form.Item>
                     <Button
                       type="primary"
-                      htmlType="submit"
                       block
                       className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => {
+                        // Get form message value
+                        const message = form.getFieldValue("message");
+
+                        // Format phone number for WhatsApp - remove non-numeric characters
+                        const phoneNumber = listing.contactPhone?.replace(
+                          /\D/g,
+                          ""
+                        );
+
+                        if (!phoneNumber) {
+                          message.error("No contact phone number available");
+                          return;
+                        }
+
+                        // Create WhatsApp URL with phone and message
+                        const whatsappUrl = `https://wa.me/91${phoneNumber}?text=${encodeURIComponent(
+                          message || ""
+                        )}`;
+
+                        // Open WhatsApp in new tab
+                        window.open(whatsappUrl, "_blank");
+
+                        // Optional: Still show success message in the UI
+                        message.success(
+                          "Opening WhatsApp to contact the listing owner!"
+                        );
+                      }}
                     >
-                      Send Inquiry
+                      Contact via WhatsApp
                     </Button>
                   </Form.Item>
                 </Form>
