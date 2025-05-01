@@ -69,15 +69,19 @@ const { Option } = Select;
 const { TextArea } = Input;
 const { TabPane } = Tabs;
 
-// Add the sanitizeAmenityText function outside the component
+// Replace sanitizeAmenityText function with this improved version:
 const sanitizeAmenityText = (amenity) => {
   if (!amenity) return "";
+
   // First convert to string if not already
   let text = String(amenity);
-  // Remove any square brackets and quotes that might be in the string
-  text = text.replace(/^\["|"\]$|^"|"$|^\[|\]$/g, "");
-  // Clean any leading/trailing slashes
-  text = text.trim().replace(/^\/+|\/+$/g, "");
+
+  // Remove any square brackets, quotes, and other problematic characters
+  text = text.replace(/[\[\]\\/"']/g, "");
+
+  // Clean any leading/trailing whitespace
+  text = text.trim();
+
   return text;
 };
 
@@ -119,28 +123,79 @@ const AdminListings = () => {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewUrls, setPreviewUrls] = useState([]); // Added for multiple image uploads
   const [attributeString, setAttributeString] = useState(""); // New state for comma-separated list
-  
+
   // Add state for saved hours templates that was missing (causing the error)
   const [savedHoursTemplates, setSavedHoursTemplates] = useState(() => {
     // Try to load saved hours from localStorage
     try {
-      const saved = localStorage.getItem('savedBusinessHours');
-      return saved ? JSON.parse(saved) : {
-        standard: null,
-        extended: null,
-        allDay: null,
-        lastUsed: null
-      };
+      const saved = localStorage.getItem("savedBusinessHours");
+      return saved
+        ? JSON.parse(saved)
+        : {
+            standard: null,
+            extended: null,
+            allDay: null,
+            lastUsed: null,
+          };
     } catch (e) {
-      console.error('Error loading saved hours:', e);
+      console.error("Error loading saved hours:", e);
       return {
         standard: null,
         extended: null,
         allDay: null,
-        lastUsed: null
+        lastUsed: null,
       };
     }
   });
+
+  // Save hours template function
+  const saveHoursTemplate = (templateName, hours) => {
+    if (!hours) {
+      notification.warning({
+        message: "No Hours Data",
+        description: "There are no hours to save as template.",
+      });
+      return;
+    }
+
+    // Create new saved templates object with the new template
+    const newSavedTemplates = {
+      ...savedHoursTemplates,
+      [templateName]: hours,
+      lastUsed: hours, // Always update the lastUsed template
+    };
+
+    // Update state
+    setSavedHoursTemplates(newSavedTemplates);
+
+    // Save to localStorage
+    try {
+      localStorage.setItem(
+        "savedBusinessHours",
+        JSON.stringify(newSavedTemplates)
+      );
+      notification.success({
+        message: "Template Saved",
+        description: `Business hours template has been saved.`,
+        duration: 2,
+      });
+    } catch (error) {
+      console.error("Error saving hours template:", error);
+      notification.error({
+        message: "Error Saving Template",
+        description: "There was an error saving your business hours template.",
+        duration: 3,
+      });
+    }
+  };
+
+  // Load a saved hours template from state
+  const loadHoursTemplate = (templateName) => {
+    if (savedHoursTemplates && savedHoursTemplates[templateName]) {
+      return savedHoursTemplates[templateName];
+    }
+    return null;
+  };
 
   const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -514,7 +569,10 @@ const AdminListings = () => {
       // Handle locationLink specially to ensure it's included
       // Always include locationLink field even if it's empty
       fd.append("locationLink", values.locationLink || "");
-      console.log(`⭐ Added locationLink to form data:`, values.locationLink || "");
+      console.log(
+        `⭐ Added locationLink to form data:`,
+        values.locationLink || ""
+      );
 
       // Add tags
       if (values.tags && values.tags.length > 0) {
@@ -610,10 +668,12 @@ const AdminListings = () => {
       });
 
       notification.success({
-        message: `Listing ${editingListingId ? "updated" : "created"
-          } successfully!`,
-        description: `${values.name} has been ${editingListingId ? "updated" : "created"
-          }.`,
+        message: `Listing ${
+          editingListingId ? "updated" : "created"
+        } successfully!`,
+        description: `${values.name} has been ${
+          editingListingId ? "updated" : "created"
+        }.`,
       });
 
       resetForm();
@@ -678,46 +738,59 @@ const AdminListings = () => {
 
     // Parse location for country, state, city, area
     if (listing.location) {
-      const locationParts = listing.location
-        .split(",")
-        .map((part) => part.trim());
-      const city = locationParts[0] || "";
-      const area = locationParts.length > 3 ? locationParts[1] : "";
+      try {
+        const locationParts = listing.location
+          .split(",")
+          .map((part) => part.trim());
 
-      // Find the country by name
-      const country = countries.find(
-        (c) => c.name === locationParts[locationParts.length - 1]
-      );
+        // Make sure we have at least one part
+        if (locationParts.length > 0) {
+          const city = locationParts[0] || "";
+          // Only try to get area if we have enough parts
+          const area = locationParts.length > 3 ? locationParts[1] : "";
 
-      if (country) {
-        setSelectedCountry(country.id);
-        form.setFieldsValue({ country: country.id });
+          // Find the country (last part) if it exists
+          if (locationParts.length > 1) {
+            const countryName = locationParts[locationParts.length - 1];
+            const country = countries.find((c) => c.name === countryName);
 
-        // Get states in this country
-        const statesInCountry = states.filter(
-          (s) => s.country_id === country.id
-        );
-        setFilteredStates(statesInCountry);
+            if (country) {
+              setSelectedCountry(country.id);
+              form.setFieldsValue({ country: country.id });
 
-        // Find state by name
-        const state = statesInCountry.find(
-          (s) => s.name === locationParts[locationParts.length - 2]
-        );
+              // Get states in this country
+              const statesInCountry = states.filter(
+                (s) => s.country_id === country.id
+              );
+              setFilteredStates(statesInCountry);
 
-        if (state) {
-          setSelectedState(state.id);
-          form.setFieldsValue({ state: state.id });
+              // Try to find state if we have enough parts
+              if (locationParts.length > 2) {
+                const stateName = locationParts[locationParts.length - 2];
+                const state = statesInCountry.find((s) => s.name === stateName);
 
-          // Get cities in this state
-          const citiesInState = cities.filter((c) => c.state_id === state.id);
-          setFilteredCities(citiesInState);
+                if (state) {
+                  setSelectedState(state.id);
+                  form.setFieldsValue({ state: state.id });
 
-          // Set city and area
-          form.setFieldsValue({
-            city: city,
-            area: area,
-          });
+                  // Get cities in this state
+                  const citiesInState = cities.filter(
+                    (c) => c.state_id === state.id
+                  );
+                  setFilteredCities(citiesInState);
+                }
+              }
+
+              // Set city and area
+              form.setFieldsValue({
+                city: city,
+                area: area,
+              });
+            }
+          }
         }
+      } catch (error) {
+        console.error("Error parsing location:", error);
       }
     }
 
@@ -829,6 +902,14 @@ const AdminListings = () => {
     if (!attributesString) return {};
 
     try {
+      // If it's already a comma-separated string, return it as is
+      if (
+        typeof attributesString === "string" &&
+        attributesString.includes(",")
+      ) {
+        return attributesString;
+      }
+
       // Try parsing the string to an object
       let parsed = attributesString;
 
@@ -865,12 +946,15 @@ const AdminListings = () => {
             return JSON.parse(reconstructed);
           } catch {
             // If that fails too, return the best we have
-            return { value: reconstructed };
+            return reconstructed;
           }
         }
+
+        // If it's a regular object, convert to comma-separated string
+        return Object.keys(parsed).join(", ");
       }
 
-      return typeof parsed === "object" ? parsed : { value: String(parsed) };
+      return typeof parsed === "object" ? parsed : String(parsed);
     } catch (error) {
       console.error("Error parsing attributes:", error);
       return {};
@@ -905,7 +989,9 @@ const AdminListings = () => {
             return amenity.replace(/[\[\]\\/"']/g, "").trim();
           }
         }
-        return String(amenity).replace(/[\[\]\\/"']/g, "").trim();
+        return String(amenity)
+          .replace(/[\[\]\\/"']/g, "")
+          .trim();
       })
       .filter(Boolean);
   };
@@ -914,7 +1000,7 @@ const AdminListings = () => {
 
     // If preserving hours, immediately set them back after reset
     if (preserveHours && savedHoursTemplates.lastUsed) {
-      const lastHours = loadHoursTemplate('lastUsed');
+      const lastHours = loadHoursTemplate("lastUsed");
       if (lastHours) {
         setTimeout(() => {
           form.setFieldsValue({ hours: lastHours });
@@ -944,7 +1030,7 @@ const AdminListings = () => {
     if (!categoryId) return "Uncategorized";
 
     // If categoryId is an object with _id property
-    if (typeof categoryId === 'object' && categoryId?._id) {
+    if (typeof categoryId === "object" && categoryId?._id) {
       const category = categories.find((c) => c._id === categoryId._id);
       return category ? category.name : "Unknown";
     }
@@ -1000,7 +1086,9 @@ const AdminListings = () => {
     >
       <div className="mb-2">
         <Tag color="blue">
-          {listing.category ? getCategoryName(listing.category) : "Uncategorized"}
+          {listing.category
+            ? getCategoryName(listing.category)
+            : "Uncategorized"}
         </Tag>
       </div>
       <h3 className="font-semibold text-lg mb-1 text-blue-700 line-clamp-1">
@@ -1047,7 +1135,9 @@ const AdminListings = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-2">
             <div>
               <Tag color="blue" className="mb-2">
-                {listing.category ? getCategoryName(listing.category) : "Uncategorized"}
+                {listing.category
+                  ? getCategoryName(listing.category)
+                  : "Uncategorized"}
               </Tag>
               <h3 className="font-semibold text-lg mb-1 text-blue-700">
                 {listing.name}
@@ -1516,7 +1606,7 @@ const AdminListings = () => {
                                 }}
                               />
                             </div>
-                            {/* Fixed delete button with proper event handler */}
+                            {/* Update the thumbnail click handler in your image section: */}
                             <Button
                               type="text"
                               danger
@@ -1524,8 +1614,10 @@ const AdminListings = () => {
                               size="small"
                               className="absolute top-0 right-0 bg-white/70 hover:bg-white"
                               onClick={(e) => {
-                                e.preventDefault();
+                                // Important: Use stopPropagation before any other code
                                 e.stopPropagation();
+                                e.preventDefault();
+                                // Call handleDeleteImage with the correct parameters
                                 handleDeleteImage(img, idx);
                               }}
                             />
@@ -1555,20 +1647,28 @@ const AdminListings = () => {
                         onPressEnter={() => {
                           if (newAmenity.trim()) {
                             // Sanitize the amenity before adding
-                            const sanitizedAmenity = sanitizeAmenityText(newAmenity);
+                            const sanitizedAmenity =
+                              sanitizeAmenityText(newAmenity);
 
-                            if (sanitizedAmenity && !amenities.some(a => sanitizeAmenityText(a).toLowerCase() === sanitizedAmenity.toLowerCase())) {
+                            if (
+                              sanitizedAmenity &&
+                              !amenities.some(
+                                (a) =>
+                                  sanitizeAmenityText(a).toLowerCase() ===
+                                  sanitizedAmenity.toLowerCase()
+                              )
+                            ) {
                               setAmenities([...amenities, sanitizedAmenity]);
                               setNewAmenity("");
                             } else if (!sanitizedAmenity) {
                               notification.warning({
                                 message: "Invalid Input",
-                                description: "Please enter a valid amenity"
+                                description: "Please enter a valid amenity",
                               });
                             } else {
                               notification.info({
                                 message: "Duplicate",
-                                description: "This amenity is already added"
+                                description: "This amenity is already added",
                               });
                               setNewAmenity("");
                             }
@@ -1582,20 +1682,28 @@ const AdminListings = () => {
                         onClick={() => {
                           if (newAmenity.trim()) {
                             // Sanitize the amenity before adding
-                            const sanitizedAmenity = sanitizeAmenityText(newAmenity);
+                            const sanitizedAmenity =
+                              sanitizeAmenityText(newAmenity);
 
-                            if (sanitizedAmenity && !amenities.some(a => sanitizeAmenityText(a).toLowerCase() === sanitizedAmenity.toLowerCase())) {
+                            if (
+                              sanitizedAmenity &&
+                              !amenities.some(
+                                (a) =>
+                                  sanitizeAmenityText(a).toLowerCase() ===
+                                  sanitizedAmenity.toLowerCase()
+                              )
+                            ) {
                               setAmenities([...amenities, sanitizedAmenity]);
                               setNewAmenity("");
                             } else if (!sanitizedAmenity) {
                               notification.warning({
                                 message: "Invalid Input",
-                                description: "Please enter a valid amenity"
+                                description: "Please enter a valid amenity",
                               });
                             } else {
                               notification.info({
                                 message: "Duplicate",
-                                description: "This amenity is already added"
+                                description: "This amenity is already added",
                               });
                               setNewAmenity("");
                             }
@@ -1666,11 +1774,12 @@ const AdminListings = () => {
                         { name: "Pet Friendly", icon: <FiHeart /> },
                       ].map((item) => {
                         // Fix: Ensure we're safely comparing string values
-                        const isAdded = amenities.some(
-                          (a) =>
-                            typeof a === "string" &&
-                            a.toLowerCase() === item.name.toLowerCase()
-                        );
+                        const isAdded = amenities.some((a) => {
+                          const sanitizedA =
+                            sanitizeAmenityText(a).toLowerCase();
+                          const sanitizedItem = item.name.toLowerCase();
+                          return sanitizedA === sanitizedItem;
+                        });
 
                         return (
                           <Tag
@@ -1695,7 +1804,8 @@ const AdminListings = () => {
                                   amenities.filter(
                                     (a) =>
                                       typeof a !== "string" ||
-                                      a.toLowerCase() !== item.name.toLowerCase()
+                                      a.toLowerCase() !==
+                                        item.name.toLowerCase()
                                   )
                                 );
                               }
@@ -1796,7 +1906,7 @@ const AdminListings = () => {
                           };
                           form.setFieldsValue({ hours: businessHours });
                           // Save this template
-                          saveHoursTemplate('standard', businessHours);
+                          saveHoursTemplate("standard", businessHours);
                         }}
                       >
                         Standard Hours (9-5)
@@ -1838,7 +1948,7 @@ const AdminListings = () => {
                           };
                           form.setFieldsValue({ hours: extendedHours });
                           // Save this template
-                          saveHoursTemplate('extended', extendedHours);
+                          saveHoursTemplate("extended", extendedHours);
                         }}
                       >
                         Extended Hours (8-8)
@@ -1880,7 +1990,7 @@ const AdminListings = () => {
                           };
                           form.setFieldsValue({ hours: allDayHours });
                           // Save this template
-                          saveHoursTemplate('allDay', allDayHours);
+                          saveHoursTemplate("allDay", allDayHours);
                         }}
                       >
                         24/7 Hours
@@ -1906,48 +2016,51 @@ const AdminListings = () => {
                         Clear All
                       </Button>
 
-                      {savedHoursTemplates.lastUsed && (
+                      {/* {savedHoursTemplates.lastUsed && (
                         <Button
                           type="primary"
                           ghost
                           icon={<FiClock />}
                           onClick={() => {
-                            const lastHours = loadHoursTemplate('lastUsed');
+                            const lastHours = loadHoursTemplate("lastUsed");
                             if (lastHours) {
                               form.setFieldsValue({ hours: lastHours });
                               notification.success({
-                                message: 'Hours Loaded',
-                                description: 'Your last used business hours template has been loaded.',
-                                duration: 2
+                                message: "Hours Loaded",
+                                description:
+                                  "Your last used business hours template has been loaded.",
+                                duration: 2,
                               });
                             }
                           }}
                         >
                           Load Last Used
                         </Button>
-                      )}
+                      )} */}
                     </div>
 
                     <div className="mb-3">
                       <Text type="secondary">
-                        Quick tip: Hours are automatically saved when you submit the form
+                        Quick tip: Hours are automatically saved when you submit
+                        the form
                       </Text>
                     </div>
 
                     {/* Add a button to save current hours configuration */}
-                    <Button 
+                    <Button
                       type="dashed"
                       className="mb-4"
                       icon={<FiSave />}
                       onClick={() => {
-                        const currentHours = form.getFieldValue('hours');
+                        const currentHours = form.getFieldValue("hours");
                         if (currentHours) {
-                          saveHoursTemplate('custom', currentHours);
+                          saveHoursTemplate("custom", currentHours);
                         } else {
                           notification.warning({
-                            message: 'No Hours Set',
-                            description: 'Please set business hours before saving.',
-                            duration: 2
+                            message: "No Hours Set",
+                            description:
+                              "Please set business hours before saving.",
+                            duration: 2,
                           });
                         }
                       }}
@@ -1957,7 +2070,15 @@ const AdminListings = () => {
                   </div>
 
                   {/* Keep the days of the week inputs as is */}
-                  {["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].map((day) => (
+                  {[
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                  ].map((day) => (
                     <Form.Item
                       label={
                         <div className="flex justify-between w-full">
@@ -1969,7 +2090,10 @@ const AdminListings = () => {
                             size="small"
                             onClick={() => {
                               // Apply current day's time to all weekdays
-                              const dayValues = form.getFieldValue(["hours", day]);
+                              const dayValues = form.getFieldValue([
+                                "hours",
+                                day,
+                              ]);
                               if (dayValues?.open && dayValues?.close) {
                                 const weekdays = [
                                   "monday",
@@ -2038,7 +2162,7 @@ const AdminListings = () => {
                   <div className="mt-4">
                     <div className="flex justify-between items-center mb-2">
                       <h4 className="font-medium">Common Attributes</h4>
-                      {attributeString && (
+                      {/* {attributeString && (
                         <Button
                           danger
                           size="small"
@@ -2064,10 +2188,10 @@ const AdminListings = () => {
                         >
                           Remove All Attributes
                         </Button>
-                      )}
+                      )} */}
                     </div>
                     <div className="flex flex-wrap gap-2 mb-4">
-                      { [
+                      {[
                         "bedrooms",
                         "bathrooms",
                         "wifi",
@@ -2121,7 +2245,7 @@ const AdminListings = () => {
                                   notification.success({
                                     message: "Attribute Removed",
                                     description: `"${attr}" attribute has been removed.`,
-                                    duration: 2
+                                    duration: 2,
                                   });
                                 }}
                                 className="py-1.5 px-3 bg-white border border-blue-200"
@@ -2169,32 +2293,32 @@ const AdminListings = () => {
           </div>
         ) : listings.length > 0 ? (
           <>
-          <div
-            className={
-              viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6"
-                : "space-y-4"
-            }
-          >
-            {viewMode === "grid"
-              ? listings.map((listing) => renderGridItem(listing))
-              : listings.map((listing) => renderListItem(listing))}
-          </div>
-          
-          {/* Load More Button */}
-          {hasMore && (
-            <div className="mt-8 text-center">
-              <Button
-                type="primary"
-                size="large"
-                loading={loadingMore}
-                onClick={loadMoreListings}
-                className="bg-blue-600 hover:bg-blue-700 px-8 h-12"
-              >
-                Load More Listings
-              </Button>
+            <div
+              className={
+                viewMode === "grid"
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6"
+                  : "space-y-4"
+              }
+            >
+              {viewMode === "grid"
+                ? listings.map((listing) => renderGridItem(listing))
+                : listings.map((listing) => renderListItem(listing))}
             </div>
-          )}
+
+            {/* Load More Button */}
+            {hasMore && (
+              <div className="mt-8 text-center">
+                <Button
+                  type="primary"
+                  size="large"
+                  loading={loadingMore}
+                  onClick={loadMoreListings}
+                  className="bg-blue-600 hover:bg-blue-700 px-8 h-12"
+                >
+                  Load More Listings
+                </Button>
+              </div>
+            )}
           </>
         ) : (
           <Empty

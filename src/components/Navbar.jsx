@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, LogOut, User, Bell, Search, ChevronDown, Home, ShoppingBag, Briefcase } from "lucide-react";
+import {
+  Menu,
+  X,
+  LogOut,
+  User,
+  Bell,
+  Search,
+  ChevronDown,
+  Home,
+  ShoppingBag,
+  Briefcase,
+} from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 
@@ -9,7 +20,16 @@ import {
   logoutUser,
   getCurrentUser,
 } from "../services/authService";
-import { Badge, Avatar, Input, Dropdown, Menu as AntMenu, Button, Tooltip, Spin } from "antd";
+import {
+  Badge,
+  Avatar,
+  Input,
+  Dropdown,
+  Menu as AntMenu,
+  Button,
+  Tooltip,
+  Spin,
+} from "antd";
 
 // API URL from environment variables
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -58,11 +78,11 @@ const Navbar = () => {
       if (authStatus) {
         const user = getCurrentUser();
         setUserData(user);
-        
+
         // Check if user is admin
         if (user?.role === "admin" || user?.role === "super-admin") {
           setIsAdmin(true);
-          
+
           // Store admin status in localStorage for persistence
           localStorage.setItem("isAdmin", "true");
         }
@@ -79,7 +99,7 @@ const Navbar = () => {
 
     // Add event listener for storage changes (for multi-tab logout)
     window.addEventListener("storage", checkAuth);
-    
+
     // Add scroll event listener for navbar styling
     const handleScroll = () => {
       if (window.scrollY > 50) {
@@ -88,12 +108,12 @@ const Navbar = () => {
         setScrolled(false);
       }
     };
-    
-    window.addEventListener('scroll', handleScroll);
+
+    window.addEventListener("scroll", handleScroll);
 
     return () => {
       window.removeEventListener("storage", checkAuth);
-      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener("scroll", handleScroll);
     };
   }, []);
 
@@ -103,11 +123,11 @@ const Navbar = () => {
     logoutUser();
     setUserAuthenticated(false);
     setUserData(null);
-    
+
     // Only clear admin status if explicitly logging out
     localStorage.removeItem("isAdmin");
     setIsAdmin(false);
-    
+
     navigate("/");
   };
 
@@ -129,53 +149,73 @@ const Navbar = () => {
           <Link to="/admin/dashboard">Vendor Dashboard</Link>
         </AntMenu.Item>
       )}
-      <AntMenu.Item key="3" icon={<LogOut size={14} />} danger onClick={handleLogout}>
+      <AntMenu.Item
+        key="3"
+        icon={<LogOut size={14} />}
+        danger
+        onClick={handleLogout}
+      >
         Log Out
       </AntMenu.Item>
     </AntMenu>
   );
-  
+
   // Dynamic categories menu
-  const categoryMenu = (
-    <AntMenu>
-      {loadingCategories ? (
-        <AntMenu.Item disabled>
-          <Spin size="small" /> Loading categories...
-        </AntMenu.Item>
-      ) : categories.length > 0 ? (
-        categories.map(category => (
-          <AntMenu.Item key={category._id} icon={<Home size={16} />}>
+  const categoryItems = [
+    ...(loadingCategories
+      ? [
+          {
+            key: "loading",
+            label: (
+              <span>
+                <Spin size="small" /> Loading categories...
+              </span>
+            ),
+            disabled: true,
+          },
+        ]
+      : categories.length > 0
+      ? categories.map((category) => ({
+          key: category._id,
+          icon: <Home size={16} />,
+          label: (
             <Link to={`/listings?category=${category._id}`}>
               {category.name}
             </Link>
-          </AntMenu.Item>
-        ))
-      ) : (
-        <AntMenu.Item disabled>
-          No categories available
-        </AntMenu.Item>
-      )}
-      <AntMenu.Divider />
-      <AntMenu.Item key="all-categories">
+          ),
+        }))
+      : [{ key: "none", label: "No categories available", disabled: true }]),
+    {
+      type: "divider",
+    },
+    {
+      key: "all-categories",
+      label: (
         <Link to="/listings" className="text-blue-600 font-medium">
           View All Categories
         </Link>
-      </AntMenu.Item>
-    </AntMenu>
-  );
+      ),
+    },
+  ];
 
   return (
     <>
-      <nav className={`bg-white fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-        scrolled ? 'shadow-md py-2' : 'shadow-sm py-3'
-      }`}>
+      <nav
+        className={`bg-white fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+          scrolled ? "shadow-md py-2" : "shadow-sm py-3"
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 z-10">
             <img src="/Logo.png" alt="ListyGo Logo" className="h-10 w-auto" />
-            <span className={`text-xl font-bold text-blue-600 transition-all duration-300 ${
-              scrolled ? 'text-blue-700' : 'text-blue-600'
-            }`}>ListyGo</span>
+            <span
+              className={`text-xl font-bold text-blue-600 transition-all duration-300 ${
+                scrolled ? "text-blue-700" : "text-blue-600"
+              }`}
+            >
+              ListyGo
+            </span>
           </Link>
 
           {/* Desktop Menu */}
@@ -199,7 +239,9 @@ const Navbar = () => {
               <Link
                 to="/listings"
                 className={`transition duration-200 hover:text-blue-600 py-2 relative ${
-                  isActive("/listings") && !isActive("/listings/") ? "text-blue-600 font-semibold" : ""
+                  isActive("/listings") && !isActive("/listings/")
+                    ? "text-blue-600 font-semibold"
+                    : ""
                 }`}
               >
                 All Listings
@@ -210,12 +252,9 @@ const Navbar = () => {
                   />
                 )}
               </Link>
-              
+
               {/* Dynamic Categories Dropdown */}
-              <Dropdown 
-                menu={{ items: categoryMenu }} 
-                placement="bottom"
-              >
+              <Dropdown menu={{ items: categoryItems }} placement="bottom">
                 <div className="cursor-pointer transition duration-200 hover:text-blue-600 py-2 relative flex items-center gap-1">
                   Categories <ChevronDown size={16} />
                 </div>
@@ -250,7 +289,7 @@ const Navbar = () => {
                   />
                 )}
               </Link>
-              
+
               {isAdmin && (
                 <Link
                   to="/admin/dashboard"
@@ -292,7 +331,9 @@ const Navbar = () => {
                         {userData?.name || "User"}
                       </div>
                       <div className="text-xs text-gray-500">
-                        {userData?.role === "admin" ? "Admin" : userData?.role || "User"}
+                        {userData?.role === "admin"
+                          ? "Admin"
+                          : userData?.role || "User"}
                       </div>
                     </div>
                     <ChevronDown size={16} className="text-gray-500" />
@@ -314,7 +355,7 @@ const Navbar = () => {
                 >
                   Sign Up
                 </Link>
-                
+
                 {/* Added vendor login option */}
                 <Tooltip title="For business owners">
                   <Link
@@ -407,7 +448,7 @@ const Navbar = () => {
                 >
                   All Listings
                 </Link>
-                
+
                 {/* Dynamic categories in mobile menu */}
                 <div className="py-2 text-gray-700">
                   <div className="mb-2 font-medium">Categories</div>
@@ -418,7 +459,7 @@ const Navbar = () => {
                   ) : (
                     <div className="grid grid-cols-2 gap-2 pl-2">
                       {categories.slice(0, 6).map((category) => (
-                        <Link 
+                        <Link
                           key={category._id}
                           to={`/listings?category=${category._id}`}
                           className="flex items-center gap-2 py-1 text-gray-600 hover:text-blue-600"
@@ -439,7 +480,7 @@ const Navbar = () => {
                     </div>
                   )}
                 </div>
-                
+
                 <Link
                   to="/about"
                   className={`py-2 ${
@@ -511,7 +552,9 @@ const Navbar = () => {
                     </Link>
                     <div className="relative flex items-center py-2">
                       <div className="flex-grow border-t border-gray-200"></div>
-                      <span className="flex-shrink mx-4 text-gray-400 text-xs">OR</span>
+                      <span className="flex-shrink mx-4 text-gray-400 text-xs">
+                        OR
+                      </span>
                       <div className="flex-grow border-t border-gray-200"></div>
                     </div>
                     <Link
@@ -530,7 +573,7 @@ const Navbar = () => {
       </nav>
 
       {/* Space to prevent content from being hidden under navbar */}
-      <div className={`h-16 ${scrolled ? 'h-14' : 'h-16'}`}></div>
+      <div className={`h-16 ${scrolled ? "h-14" : "h-16"}`}></div>
     </>
   );
 };
