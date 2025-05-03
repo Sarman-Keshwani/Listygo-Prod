@@ -3,7 +3,7 @@ import axios from "axios";
 import { notification, Skeleton } from "antd";
 import { motion } from "framer-motion";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 export default function ResponsiveFullStretchLayout() {
   const [boxData, setBoxData] = useState({
@@ -18,7 +18,7 @@ export default function ResponsiveFullStretchLayout() {
   const fetchGridContent = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/api/layout`);
+      const response = await axios.get(`${API_URL}/layout`);
 
       if (response.data.success) {
         setBoxData(response.data.data);
