@@ -76,6 +76,10 @@ const AdminDashboard = () => {
     }
   };
 
+
+  const [totalCount, setTotalCount] = useState(0);
+  const [listingsCount, setListingsCount] = useState(0);
+
   // Function to fetch categories with enhanced data
   const fetchCategories = useCallback(async () => {
     try {
@@ -97,9 +101,12 @@ const AdminDashboard = () => {
           const countPromises = categoriesData.map(async (category) => {
             try {
               const listingsResponse = await axios.get(
-                `${API_URL}/listings?category=${category._id}&limit=1`,
+                `${API_URL}/listings?category=${category._id}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
               );
+              // console.log(listingsResponse,"DA")
+              
+              // setListingsCount(listingsResponse?.data?.totalCount);
               return {
                 id: category._id,
                 count: listingsResponse.data.pagination?.total || 0
@@ -172,7 +179,9 @@ const AdminDashboard = () => {
             headers: { Authorization: `Bearer ${token}` },
           });
           listingsCount = listingsResponse.data.pagination?.total || 40; // Use pagination total or fallback to 40
-          console.log("Direct listings count:", listingsCount);
+          
+          
+          setListingsCount(listingsResponse?.data?.totalCount);
         } catch (error) {
           console.error("Error fetching listings count:", error);
           listingsCount = 40; // Fallback count
@@ -651,7 +660,7 @@ const AdminDashboard = () => {
               <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-green-100 opacity-50" />
               <Statistic 
                 title={<span className="text-gray-600 font-semibold">Total Listings</span>}
-                value={adminData?.totalListings || 40} 
+                value={listingsCount} 
                 prefix={<FiHome className="text-green-600 mr-2" />} 
                 valueStyle={{ color: '#15803d', fontWeight: 'bold' }}
               />
@@ -771,9 +780,9 @@ const AdminDashboard = () => {
                       <h3 className={`font-medium text-gray-800 text-center ${isMobile ? 'text-xs' : 'text-sm md:text-base'} truncate w-full mb-1`}>
                         {category.name}
                       </h3>
-                      <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full`}>
+                      {/* <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-500 font-medium bg-gray-100 px-2 py-0.5 rounded-full`}>
                         {categoryStats[category._id]?.listingsCount || 0} listings
-                      </div>
+                      </div> */}
                       {!isMobile && category.description && (
                         <Tooltip title={category.description}>
                           <div className="text-xs text-gray-500 mt-2 truncate w-full text-center">
@@ -949,7 +958,7 @@ const AdminDashboard = () => {
                 style={{ width: isMobile ? '100%' : 140 }}
                 onChange={(value) => {
                   // Filter logic would go here for UI filtering
-                  console.log("Filter by status:", value);
+                  
                   
                   // This would just filter the existing data client-side
                   if (value) {
