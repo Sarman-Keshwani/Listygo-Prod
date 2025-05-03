@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 
 const { TabPane } = Tabs;
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 export const LayoutEditor = ({ boxData, onUpdate }) => {
   const [form] = Form.useForm();
@@ -49,7 +49,7 @@ export const LayoutEditor = ({ boxData, onUpdate }) => {
 
       // Corrected API endpoint URL
       const response = await axios.post(
-        `${API_URL}/api/layout/upload-image`,
+        `${API_URL}/layout/upload-image`,
         formData,
         {
           headers: {
