@@ -17,7 +17,7 @@ export const LayoutEditor = ({ boxData, onUpdate }) => {
     setLoading(true);
     try {
       // Update layout content via API - Corrected endpoint
-      await axios.post(`${API_URL}/api/layout`, values, {
+      await axios.post(`${API_URL}/layout`, values, {
         withCredentials: true
       });
 
