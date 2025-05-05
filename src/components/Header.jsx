@@ -181,7 +181,7 @@ export default function HeaderCarouselSection() {
     <section className="relative w-full h-[100vh] overflow-hidden pt-16"> {/* Ensure mt-18 matches your header height */}
 
       {/* Category Tabs - Updated active state to blue */}
-      <div className="absolute top-6 left-4 right-4 md:left-6 md:right-auto z-20 flex gap-2 md:gap-3 flex-wrap justify-center md:justify-start">
+      {/* <div className="absolute top-6 left-4 right-4 md:left-6 md:right-auto z-20 flex gap-2 md:gap-3 flex-wrap justify-center md:justify-start">
         {slides.map((slide, index) => (
           <button
             key={index}
@@ -195,7 +195,7 @@ export default function HeaderCarouselSection() {
             {slide.icon} {slide.category}
           </button>
         ))}
-      </div>
+      </div> */}
 
       {/* Background slides */}
       <AnimatePresence initial={false}>
