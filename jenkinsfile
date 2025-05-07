@@ -1,0 +1,27 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Pull Code') {
+      steps {
+        git 'https://github.com/Sarman-Keshwani/Listygo-Prod.git'
+      }
+    }
+
+    stage('Build Docker Image') {
+      steps {
+        sh 'docker build -t home-frontend .'
+      }
+    }
+
+    stage('Redeploy') {
+      steps {
+        sh '''
+          docker stop home-frontend-1 || true
+          docker rm home-frontend-1 || true
+          docker run -d --name home-frontend-1 -p 5173:80 home-frontend
+        '''
+      }
+    }
+  }
+}
