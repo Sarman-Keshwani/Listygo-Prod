@@ -1,37 +1,49 @@
 // HeaderCarouselSection.jsx
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, Hotel, Home, ShoppingBag, ChevronDown, Search, MapPin } from "lucide-react"; // Added MapPin
-import { Link, useNavigate} from "react-router-dom"; // Import Link for routing
+import {
+  ChevronLeft,
+  ChevronRight,
+  Hotel,
+  Home,
+  ShoppingBag,
+  ChevronDown,
+  Search,
+  MapPin,
+} from "lucide-react"; // Added MapPin
+import { Link, useNavigate } from "react-router-dom"; // Import Link for routing
 import axios from "axios"; // Import axios for API requests
 
 // API URL from environment variables
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 const slides = [
   {
     category: "Accommodations",
     title: "Find Your Stay",
     subtitle: "Top-rated hotels, motels & homestays near you",
-    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
+    image:
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
     icon: <Hotel size={16} />,
-    route: "/listings?category=accommodations" // Using query params for flexibility
+    route: "/listings?category=accommodations", // Using query params for flexibility
   },
   {
     category: "Real Estate",
     title: "Explore Real Estate",
     subtitle: "Buy, sell or rent homes and offices",
-    image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
+    image:
+      "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
     icon: <Home size={16} />,
-    route: "/listings?category=real-estate"
+    route: "/listings?category=real-estate",
   },
   {
     category: "Shopping",
     title: "Shop the Best Deals",
     subtitle: "Local marketplace for everything you need",
-    image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
+    image:
+      "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
     icon: <ShoppingBag size={16} />,
-    route: "/listings?category=shopping"
+    route: "/listings?category=shopping",
   },
 ];
 
@@ -45,20 +57,20 @@ const POPULAR_CATEGORIES = [
   "Entertainment",
   "Fitness",
   "Healthcare",
-  "Education"
+  "Education",
 ];
 
 export default function HeaderCarouselSection() {
   const navigate = useNavigate();
   const [current, setCurrent] = React.useState(0);
-  const [location, setLocation] = React.useState(""); 
+  const [location, setLocation] = React.useState("");
   const [searchLocation, setSearchLocation] = React.useState("");
   const [searchInput, setSearchInput] = React.useState("");
   const [suggestions, setSuggestions] = React.useState([]);
   const [selectedCategory, setSelectedCategory] = React.useState("all");
   const [isSearching, setIsSearching] = React.useState(false);
   const [recentSearches, setRecentSearches] = React.useState(() => {
-    const saved = localStorage.getItem('recentSearches');
+    const saved = localStorage.getItem("recentSearches");
     return saved ? JSON.parse(saved) : [];
   });
   const [categories, setCategories] = React.useState([]);
@@ -83,7 +95,10 @@ export default function HeaderCarouselSection() {
     fetchCategories();
   }, []);
 
-  const nextSlide = React.useCallback(() => setCurrent((prev) => (prev + 1) % length), [length]);
+  const nextSlide = React.useCallback(
+    () => setCurrent((prev) => (prev + 1) % length),
+    [length]
+  );
   const prevSlide = () => setCurrent((current - 1 + length) % length);
 
   React.useEffect(() => {
@@ -93,26 +108,30 @@ export default function HeaderCarouselSection() {
 
   // Geolocation logic (remains the same)
   const handleGeoLocation = React.useCallback(() => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
-            )
-              .then((res) => res.json())
-              .then((data) => {
-                const city = data.address.city || data.address.town || data.address.village || "Your Area";
-                setLocation(city);
-                // Optionally pre-fill search location if empty
-                // if (!searchLocation) setSearchLocation(city);
-              })
-              .catch(() => setLocation("Location Unavailable"));
-          },
-          () => setLocation("Location Unavailable")
-        );
-      } else {
-          setLocation("Geolocation not supported");
-      }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${position.coords.latitude}&lon=${position.coords.longitude}&format=json`
+          )
+            .then((res) => res.json())
+            .then((data) => {
+              const city =
+                data.address.city ||
+                data.address.town ||
+                data.address.village ||
+                "Your Area";
+              setLocation(city);
+              // Optionally pre-fill search location if empty
+              // if (!searchLocation) setSearchLocation(city);
+            })
+            .catch(() => setLocation("Location Unavailable"));
+        },
+        () => setLocation("Location Unavailable")
+      );
+    } else {
+      setLocation("Geolocation not supported");
+    }
   }, []); // Removed searchLocation dependency if not pre-filling
 
   React.useEffect(() => {
@@ -125,10 +144,11 @@ export default function HeaderCarouselSection() {
     setSearchInput(val);
     if (val.length > 1) {
       // If we have categories from the database, use those
-      const categoryNames = categories.length > 0 
-        ? categories.map(cat => cat.name) 
-        : POPULAR_CATEGORIES;
-        
+      const categoryNames =
+        categories.length > 0
+          ? categories.map((cat) => cat.name)
+          : POPULAR_CATEGORIES;
+
       setSuggestions(
         categoryNames.filter((item) =>
           item.toLowerCase().includes(val.toLowerCase())
@@ -157,9 +177,10 @@ export default function HeaderCarouselSection() {
       setTimeout(() => {
         // Construct search params, only including non-empty values
         const params = new URLSearchParams();
-        if (trimmedSearch) params.set('search', trimmedSearch);
-        if (selectedCategory !== 'all') params.set('category', selectedCategory);
-        if (trimmedLocation) params.set('location', trimmedLocation);
+        if (trimmedSearch) params.set("search", trimmedSearch);
+        if (selectedCategory !== "all")
+          params.set("category", selectedCategory);
+        if (trimmedLocation) params.set("location", trimmedLocation);
 
         navigate(`/listings?${params.toString()}`);
 
@@ -172,14 +193,14 @@ export default function HeaderCarouselSection() {
     }
   };
 
-
   const handleCategoryChange = (e) => {
     setSelectedCategory(e.target.value);
   };
 
   return (
-    <section className="relative w-full h-[100vh] overflow-hidden pt-16"> {/* Ensure mt-18 matches your header height */}
-
+    <section className="relative w-full h-[100vh] overflow-hidden pt-16">
+      {" "}
+      {/* Ensure mt-18 matches your header height */}
       {/* Category Tabs - Updated active state to blue */}
       {/* <div className="absolute top-6 left-4 right-4 md:left-6 md:right-auto z-20 flex gap-2 md:gap-3 flex-wrap justify-center md:justify-start">
         {slides.map((slide, index) => (
@@ -196,7 +217,6 @@ export default function HeaderCarouselSection() {
           </button>
         ))}
       </div> */}
-
       {/* Background slides */}
       <AnimatePresence initial={false}>
         <motion.div
@@ -211,25 +231,24 @@ export default function HeaderCarouselSection() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
         </motion.div>
       </AnimatePresence>
-
       {/* Content Overlay */}
       <div className="absolute inset-0 flex flex-col justify-center items-center text-white text-center p-4 z-10">
         <AnimatePresence mode="wait">
-            <motion.div
-                key={current}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="text-center"
-            >
-                <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-2 drop-shadow-lg">
-                    {slides[current].title}
-                </h1>
-                <p className="text-lg md:text-2xl mb-6 drop-shadow-md">
-                    {slides[current].subtitle}
-                </p>
-            </motion.div>
+          <motion.div
+            key={current}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.5 }}
+            className="text-center"
+          >
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-2 drop-shadow-lg">
+              {slides[current].title}
+            </h1>
+            <p className="text-lg md:text-2xl mb-6 drop-shadow-md">
+              {slides[current].subtitle}
+            </p>
+          </motion.div>
         </AnimatePresence>
 
         {/* Refined Search Bar */}
@@ -240,7 +259,6 @@ export default function HeaderCarouselSection() {
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <div className="flex flex-col md:flex-row items-stretch bg-white rounded-xl overflow-hidden shadow-lg border border-gray-300">
-
             {/* Category Dropdown Section - Updated to use fetched categories */}
             <div className="relative border-b border-gray-300 md:border-b-0 md:border-r w-full md:w-auto shrink-0">
               <select
@@ -273,7 +291,10 @@ export default function HeaderCarouselSection() {
 
             {/* Location Input Section */}
             <div className="relative flex-grow border-b border-gray-300 md:border-b-0 md:border-r">
-              <MapPin size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <MapPin
+                size={18}
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
               <input
                 type="text"
                 value={searchLocation}
@@ -333,46 +354,44 @@ export default function HeaderCarouselSection() {
               <Search size={18} />
               <span className="text-sm md:text-base font-medium">Search</span>
             </motion.button>
-
           </div>
         </motion.div>
 
         {/* CTA Buttons - Updated to use Link */}
         <div className="mt-8 flex flex-wrap justify-center gap-4">
-           {/* Explore Now Button routes to /all-listings */}
-           <motion.div // Wrap Link in motion.div for animation
-             whileHover={{ scale: 1.05 }}
-             whileTap={{ scale: 0.95 }}
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.5, delay: 0.5 }}
-           >
-             <Link to={`/listings`}
+          {/* Explore Now Button routes to /all-listings */}
+          <motion.div // Wrap Link in motion.div for animation
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+          >
+            <Link
+              to={`/listings`}
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 text-sm md:text-base"
+            >
+              Explore Now <ChevronRight size={18} />
+            </Link>
+          </motion.div>
 
-               className="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors duration-300 text-sm md:text-base"
-             >
-               Explore Now <ChevronRight size={18} />
-             </Link>
-           </motion.div>
-
-           {/* Learn More Button routes to /about-us */}
-           <motion.div // Wrap Link in motion.div for animation
-             whileHover={{ scale: 1.05 }}
-             whileTap={{ scale: 0.95 }}
-             initial={{ opacity: 0, y: 20 }}
-             animate={{ opacity: 1, y: 0 }}
-             transition={{ duration: 0.5, delay: 0.7 }}
-           >
-             <Link
-               to="/about" // Route to About Us page
-               className="inline-block px-6 py-2.5 bg-white/20 text-white font-semibold rounded-lg border border-white hover:bg-white/30 transition-colors duration-300 text-sm md:text-base"
-             >
-               Learn More
-             </Link>
-           </motion.div>
+          {/* Learn More Button routes to /about-us */}
+          <motion.div // Wrap Link in motion.div for animation
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+          >
+            <Link
+              to="/about" // Route to About Us page
+              className="inline-block px-6 py-2.5 bg-white/20 text-white font-semibold rounded-lg border border-white hover:bg-white/30 transition-colors duration-300 text-sm md:text-base"
+            >
+              Learn More
+            </Link>
+          </motion.div>
         </div>
       </div>
-
       {/* Navigation Arrows */}
       <button
         className="absolute top-1/2 left-2 md:left-4 transform -translate-y-1/2 cursor-pointer z-10 p-2 rounded-full bg-black/30 hover:bg-black/50 transition-colors text-white"
@@ -388,7 +407,6 @@ export default function HeaderCarouselSection() {
       >
         <ChevronRight size={28} />
       </button>
-
       {/* Dots Navigation - Active dot uses blue */}
       <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2 z-10">
         {slides.map((_, i) => (
@@ -399,14 +417,18 @@ export default function HeaderCarouselSection() {
             className="p-0.5"
           >
             <motion.div
-              animate={{ scale: i === current ? 1.4 : 1, opacity: i === current ? 1 : 0.6 }}
+              animate={{
+                scale: i === current ? 1.4 : 1,
+                opacity: i === current ? 1 : 0.6,
+              }}
               transition={{ type: "spring", stiffness: 400, damping: 20 }}
-              className={`w-2.5 h-2.5 rounded-full ${i === current ? "bg-blue-500" : "bg-white/60"}`} // Active dot is blue
+              className={`w-2.5 h-2.5 rounded-full ${
+                i === current ? "bg-blue-500" : "bg-white/60"
+              }`} // Active dot is blue
             />
           </button>
         ))}
       </div>
-
       {/* Search Loading Overlay */}
       <AnimatePresence>
         {isSearching && (
@@ -419,12 +441,12 @@ export default function HeaderCarouselSection() {
             <motion.div
               animate={{
                 rotate: 360,
-                borderRadius: ["50% 50%", "40% 60%", "50% 50%"]
+                borderRadius: ["50% 50%", "40% 60%", "50% 50%"],
               }}
               transition={{
                 duration: 1.5,
                 repeat: Infinity,
-                ease: "linear"
+                ease: "linear",
               }}
               className="w-16 h-16 border-t-4 border-blue-500 border-r-4 rounded-full"
             />
@@ -439,7 +461,6 @@ export default function HeaderCarouselSection() {
           </motion.div>
         )}
       </AnimatePresence>
-
     </section>
   );
 }

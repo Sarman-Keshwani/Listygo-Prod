@@ -1,32 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { 
-  Modal, 
-  Image, 
-  Button, 
-  Typography, 
-  Tag,
-  message,
-  Spin
-} from 'antd';
-import { 
-  CameraOutlined, 
-  LeftOutlined, 
-  RightOutlined, 
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Modal, Image, Button, Typography, Tag, message, Spin } from "antd";
+import {
+  CameraOutlined,
+  LeftOutlined,
+  RightOutlined,
   HeartOutlined,
-  StarFilled, 
-  EnvironmentOutlined, 
+  StarFilled,
+  EnvironmentOutlined,
   CheckCircleOutlined,
   CalendarOutlined,
   PhoneOutlined,
-  ShareAltOutlined
-} from '@ant-design/icons';
-import axios from 'axios';
+  ShareAltOutlined,
+} from "@ant-design/icons";
+import axios from "axios";
 
 const { Title, Text, Paragraph } = Typography;
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 const GallerySection = () => {
   const [visible, setVisible] = useState(false);
@@ -36,7 +28,7 @@ const GallerySection = () => {
   const [selectedListing, setSelectedListing] = useState(null);
 
   const navigate = useNavigate();
-  
+
   // Fetch listings from the API
   useEffect(() => {
     const fetchListings = async () => {
@@ -47,8 +39,8 @@ const GallerySection = () => {
         const fetchedListings = response.data.data.slice(0, 8);
         setListings(fetchedListings);
       } catch (error) {
-        console.error('Error fetching listings:', error);
-        message.error('Failed to load listings');
+        console.error("Error fetching listings:", error);
+        message.error("Failed to load listings");
       } finally {
         setLoading(false);
       }
@@ -68,14 +60,14 @@ const GallerySection = () => {
     show: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
-      }
-    }
+        staggerChildren: 0.1,
+      },
+    },
   };
 
   const item = {
     hidden: { opacity: 0, scale: 0.8 },
-    show: { opacity: 1, scale: 1, transition: { duration: 0.6 } }
+    show: { opacity: 1, scale: 1, transition: { duration: 0.6 } },
   };
 
   return (
@@ -91,14 +83,18 @@ const GallerySection = () => {
           <div className="inline-flex items-center justify-center bg-blue-100 text-blue-600 px-2 py-1 md:px-3 md:py-1 rounded-full text-xs md:text-sm font-medium mb-3 md:mb-4">
             <CameraOutlined className="mr-1" /> Featured Listings
           </div>
-          
-          <Title level={2} className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4">
-            Explore Our <span className="text-blue-600">Featured Properties</span>
+
+          <Title
+            level={2}
+            className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 md:mb-4"
+          >
+            Explore Our{" "}
+            <span className="text-blue-600">Featured Properties</span>
           </Title>
-          
+
           <Text className="text-gray-600 text-sm md:text-base max-w-2xl mx-auto block px-2">
-            Browse through our curated collection of listings across multiple categories.
-            Find the perfect property that meets your needs.
+            Browse through our curated collection of listings across multiple
+            categories. Find the perfect property that meets your needs.
           </Text>
         </motion.div>
 
@@ -123,12 +119,17 @@ const GallerySection = () => {
               >
                 <div className="overflow-hidden rounded-lg shadow-md">
                   <img
-                    src={listing.images && listing.images.length > 0 ? listing.images[0] : 'https://via.placeholder.com/800x600?text=No+Image'}
+                    src={
+                      listing.images && listing.images.length > 0
+                        ? listing.images[0]
+                        : "https://via.placeholder.com/800x600?text=No+Image"
+                    }
                     alt={listing.name}
                     className="w-full h-[180px] sm:h-[200px] md:h-[220px] lg:h-[250px] object-cover transition-transform duration-700 group-hover:scale-110"
                     onError={(e) => {
                       e.target.onerror = null;
-                      e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
+                      e.target.src =
+                        "https://via.placeholder.com/800x600?text=No+Image";
                     }}
                   />
                 </div>
@@ -138,14 +139,22 @@ const GallerySection = () => {
                   </div>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 sm:p-3 md:p-4">
-                  <h3 className="text-white text-sm sm:text-base font-medium truncate">{listing.name}</h3>
+                  <h3 className="text-white text-sm sm:text-base font-medium truncate">
+                    {listing.name}
+                  </h3>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-blue-500 flex items-center text-xs sm:text-sm">
                       <StarFilled className="mr-1" />
                       {listing.rating || "4.5"}
                     </span>
-                    <span className="text-white/90 text-xs sm:text-sm">₹{listing.price}</span>
-                    {listing.category && <Tag className="ml-1 text-xs py-0" color="blue">{listing.category.name}</Tag>}
+                    <span className="text-white/90 text-xs sm:text-sm">
+                      ₹{listing.price}
+                    </span>
+                    {listing.category && (
+                      <Tag className="ml-1 text-xs py-0" color="blue">
+                        {listing.category.name}
+                      </Tag>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -168,25 +177,27 @@ const GallerySection = () => {
             <div className="w-full md:w-3/5">
               <div className="relative min-h-[200px] sm:min-h-[300px] md:min-h-[400px] bg-gray-100 rounded-lg">
                 <Image
-                  src={selectedListing.images && selectedListing.images.length > 0 
-                    ? selectedListing.images[selectedImage] 
-                    : 'https://via.placeholder.com/800x600?text=No+Image'}
+                  src={
+                    selectedListing.images && selectedListing.images.length > 0
+                      ? selectedListing.images[selectedImage]
+                      : "https://via.placeholder.com/800x600?text=No+Image"
+                  }
                   alt={selectedListing.name}
                   className="rounded-lg"
-                  style={{ 
-                    width: '100%', 
-                    height: '250px',
-                    objectFit: 'cover',
-                    objectPosition: 'center',
-                    '@media (min-width: 640px)': {
-                      height: '350px',
+                  style={{
+                    width: "100%",
+                    height: "250px",
+                    objectFit: "cover",
+                    objectPosition: "center",
+                    "@media (min-width: 640px)": {
+                      height: "350px",
                     },
-                    '@media (min-width: 768px)': {
-                      height: '400px',
+                    "@media (min-width: 768px)": {
+                      height: "400px",
                     },
-                    '@media (min-width: 1024px)': {
-                      height: '500px',
-                    }
+                    "@media (min-width: 1024px)": {
+                      height: "500px",
+                    },
                   }}
                   preview={false}
                   placeholder={
@@ -196,64 +207,77 @@ const GallerySection = () => {
                   }
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/800x600?text=No+Image';
+                    e.target.src =
+                      "https://via.placeholder.com/800x600?text=No+Image";
                   }}
                 />
-                
+
                 {/* Image navigation */}
                 <div className="absolute top-1/2 left-0 right-0 flex justify-between transform -translate-y-1/2 px-2 md:px-4">
-                  <Button 
-                    shape="circle" 
+                  <Button
+                    shape="circle"
                     icon={<LeftOutlined />}
                     size={window.innerWidth < 640 ? "small" : "middle"}
                     className="bg-white/80 hover:bg-white shadow-md"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedImage((prev) => (prev > 0 ? prev - 1 : (selectedListing.images?.length > 0 ? selectedListing.images.length - 1 : 0)));
+                      setSelectedImage((prev) =>
+                        prev > 0
+                          ? prev - 1
+                          : selectedListing.images?.length > 0
+                          ? selectedListing.images.length - 1
+                          : 0
+                      );
                     }}
                   />
-                  <Button 
+                  <Button
                     shape="circle"
                     size={window.innerWidth < 640 ? "small" : "middle"}
-                    icon={<RightOutlined />} 
+                    icon={<RightOutlined />}
                     className="bg-white/80 hover:bg-white shadow-md"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedImage((prev) => (prev < (selectedListing.images?.length - 1) ? prev + 1 : 0));
+                      setSelectedImage((prev) =>
+                        prev < selectedListing.images?.length - 1 ? prev + 1 : 0
+                      );
                     }}
                   />
                 </div>
-                
+
                 {/* Image counter */}
                 <div className="absolute bottom-2 md:bottom-4 right-2 md:right-4 bg-black/60 text-white px-2 py-0.5 md:px-3 md:py-1 rounded-full text-xs md:text-sm">
                   {selectedImage + 1} / {selectedListing.images?.length || 1}
                 </div>
               </div>
-              
+
               {/* Thumbnail gallery */}
               <div className="flex gap-1 md:gap-2 mt-2 md:mt-4 overflow-x-auto pb-2">
-                {selectedListing.images && selectedListing.images.map((img, idx) => (
-                  <div 
-                    key={idx}
-                    className={`cursor-pointer rounded-md overflow-hidden w-12 h-12 md:w-16 md:h-16 flex-shrink-0 border-2 ${
-                      selectedImage === idx ? 'border-blue-500' : 'border-transparent'
-                    }`}
-                    onClick={() => setSelectedImage(idx)}
-                  >
-                    <img
-                      src={img}
-                      alt={`Thumbnail ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://via.placeholder.com/150?text=No+Image';
-                      }}
-                    />
-                  </div>
-                ))}
+                {selectedListing.images &&
+                  selectedListing.images.map((img, idx) => (
+                    <div
+                      key={idx}
+                      className={`cursor-pointer rounded-md overflow-hidden w-12 h-12 md:w-16 md:h-16 flex-shrink-0 border-2 ${
+                        selectedImage === idx
+                          ? "border-blue-500"
+                          : "border-transparent"
+                      }`}
+                      onClick={() => setSelectedImage(idx)}
+                    >
+                      <img
+                        src={img}
+                        alt={`Thumbnail ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src =
+                            "https://via.placeholder.com/150?text=No+Image";
+                        }}
+                      />
+                    </div>
+                  ))}
               </div>
             </div>
-            
+
             {/* Right side - Property details */}
             <div className="w-full md:w-2/5">
               {/* Property title and save button */}
@@ -264,68 +288,90 @@ const GallerySection = () => {
                 <Button
                   shape="circle"
                   size={window.innerWidth < 640 ? "small" : "middle"}
-                  icon={<HeartOutlined />} 
+                  icon={<HeartOutlined />}
                   className="text-red-500 border-red-200 hover:border-red-500"
-                  onClick={() => message.success('Added to favorites!')}
+                  onClick={() => message.success("Added to favorites!")}
                 />
               </div>
-              
+
               {/* Category and location */}
               <div className="mb-2 md:mb-3">
-                {selectedListing.category && 
-                  <Tag color="blue" className="mr-2 text-xs md:text-sm">{selectedListing.category.name}</Tag>
-                }
+                {selectedListing.category && (
+                  <Tag color="blue" className="mr-2 text-xs md:text-sm">
+                    {selectedListing.category.name}
+                  </Tag>
+                )}
               </div>
-              
+
               {/* Location and rating */}
               <div className="flex flex-col xs:flex-row xs:items-center gap-2 xs:gap-4 mb-4 md:mb-6">
                 <div className="flex items-center">
                   <EnvironmentOutlined className="text-blue-500 mr-1" />
-                  <Text className="text-xs sm:text-sm">{selectedListing.location}</Text>
+                  <Text className="text-xs sm:text-sm">
+                    {selectedListing.location}
+                  </Text>
                 </div>
                 <div className="flex items-center">
                   <StarFilled className="text-yellow-400 mr-1" />
-                  <Text className="text-xs sm:text-sm">{selectedListing.rating || "4.5"} rating</Text>
+                  <Text className="text-xs sm:text-sm">
+                    {selectedListing.rating || "4.5"} rating
+                  </Text>
                 </div>
               </div>
-              
+
               {/* Price information */}
               <div className="bg-blue-50 rounded-lg p-3 md:p-4 mb-4 md:mb-6">
                 <div className="flex justify-between items-center">
-                  <Text strong className="text-base md:text-lg">Price</Text>
+                  <Text strong className="text-base md:text-lg">
+                    Price
+                  </Text>
                   <div>
                     <Text className="text-lg md:text-xl font-bold text-blue-600">
                       ${selectedListing.price}
                     </Text>
-                    {selectedListing.category && selectedListing.category.name === "Hotels" && 
-                      <Text className="text-gray-500 text-sm md:text-base"> / night</Text>
-                    }
+                    {selectedListing.category &&
+                      selectedListing.category.name === "Hotels" && (
+                        <Text className="text-gray-500 text-sm md:text-base">
+                          {" "}
+                          / night
+                        </Text>
+                      )}
                   </div>
                 </div>
-                <Text type="secondary" className="block mt-1 text-xs md:text-sm">
-                  {selectedListing.attributes?.priceType || "Includes all taxes and fees"}
+                <Text
+                  type="secondary"
+                  className="block mt-1 text-xs md:text-sm"
+                >
+                  {selectedListing.attributes?.priceType ||
+                    "Includes all taxes and fees"}
                 </Text>
               </div>
-              
+
               {/* Property description */}
               <div className="mb-4 md:mb-6">
-                <Title level={5} className="mb-2 md:mb-3 text-sm md:text-base">About this listing</Title>
+                <Title level={5} className="mb-2 md:mb-3 text-sm md:text-base">
+                  About this listing
+                </Title>
                 <Paragraph className="text-gray-600 text-xs md:text-sm line-clamp-3 md:line-clamp-none">
                   {selectedListing.description}
                 </Paragraph>
               </div>
-              
+
               {/* Mobile-optimized amenities */}
               <div className="mb-4 md:mb-6">
-                <Title level={5} className="mb-2 md:mb-3 text-sm md:text-base">Amenities</Title>
+                <Title level={5} className="mb-2 md:mb-3 text-sm md:text-base">
+                  Amenities
+                </Title>
                 <div className="grid grid-cols-1 xs:grid-cols-2 gap-y-2 md:gap-y-3">
                   {selectedListing.amenities ? (
-                    selectedListing.amenities.slice(0, window.innerWidth < 768 ? 4 : 8).map((amenity, idx) => (
-                      <div key={idx} className="flex items-center">
-                        <CheckCircleOutlined className="text-blue-500 mr-2 text-xs md:text-sm" />
-                        <Text className="text-xs md:text-sm">{amenity}</Text>
-                      </div>
-                    ))
+                    selectedListing.amenities
+                      .slice(0, window.innerWidth < 768 ? 4 : 8)
+                      .map((amenity, idx) => (
+                        <div key={idx} className="flex items-center">
+                          <CheckCircleOutlined className="text-blue-500 mr-2 text-xs md:text-sm" />
+                          <Text className="text-xs md:text-sm">{amenity}</Text>
+                        </div>
+                      ))
                   ) : (
                     <>
                       <div className="flex items-center">
@@ -334,31 +380,46 @@ const GallerySection = () => {
                       </div>
                       <div className="flex items-center">
                         <CheckCircleOutlined className="text-blue-500 mr-2 text-xs md:text-sm" />
-                        <Text className="text-xs md:text-sm">Air conditioning</Text>
+                        <Text className="text-xs md:text-sm">
+                          Air conditioning
+                        </Text>
                       </div>
                     </>
                   )}
-                  {selectedListing.amenities && selectedListing.amenities.length > (window.innerWidth < 768 ? 4 : 8) && (
-                    <Text className="text-blue-500 text-xs md:text-sm">+{selectedListing.amenities.length - (window.innerWidth < 768 ? 4 : 8)} more</Text>
-                  )}
+                  {selectedListing.amenities &&
+                    selectedListing.amenities.length >
+                      (window.innerWidth < 768 ? 4 : 8) && (
+                      <Text className="text-blue-500 text-xs md:text-sm">
+                        +
+                        {selectedListing.amenities.length -
+                          (window.innerWidth < 768 ? 4 : 8)}{" "}
+                        more
+                      </Text>
+                    )}
                 </div>
               </div>
-              
+
               {/* Simplified features for mobile */}
               {selectedListing.attributes && (
                 <div className="mb-6">
-                  <Title level={5} className="mb-2">Features</Title>
+                  <Title level={5} className="mb-2">
+                    Features
+                  </Title>
                   <div className="grid grid-cols-2 gap-y-3">
                     {selectedListing.attributes.bedrooms && (
                       <div className="flex items-center">
                         <CheckCircleOutlined className="text-blue-500 mr-2" />
-                        <Text>{selectedListing.attributes.bedrooms} Bedrooms</Text>
+                        <Text>
+                          {selectedListing.attributes.bedrooms} Bedrooms
+                        </Text>
                       </div>
                     )}
                     {selectedListing.attributes.bathrooms && (
                       <div className="flex items-center">
                         <CheckCircleOutlined className="text-blue-500 mr-2" />
-                        <Text>{selectedListing.attributes.bathrooms} Bathrooms</Text>
+                        <Text>
+                          {selectedListing.attributes.bathrooms} Bathrooms
+                        </Text>
                       </div>
                     )}
                     {selectedListing.attributes.size && (
@@ -370,20 +431,28 @@ const GallerySection = () => {
                     {selectedListing.attributes.parking !== undefined && (
                       <div className="flex items-center">
                         <CheckCircleOutlined className="text-blue-500 mr-2" />
-                        <Text>{selectedListing.attributes.parking ? 'Parking Available' : 'No Parking'}</Text>
+                        <Text>
+                          {selectedListing.attributes.parking
+                            ? "Parking Available"
+                            : "No Parking"}
+                        </Text>
                       </div>
                     )}
                   </div>
                 </div>
               )}
-              
+
               {/* Tags */}
               {selectedListing.tags && selectedListing.tags.length > 0 && (
                 <div className="mb-6">
-                  <Title level={5} className="mb-2">Tags</Title>
+                  <Title level={5} className="mb-2">
+                    Tags
+                  </Title>
                   <div className="flex flex-wrap gap-2">
                     {selectedListing.tags.map((tag, idx) => (
-                      <Tag key={idx} color="default">{tag}</Tag>
+                      <Tag key={idx} color="default">
+                        {tag}
+                      </Tag>
                     ))}
                   </div>
                 </div>
@@ -391,29 +460,30 @@ const GallerySection = () => {
 
               {/* Action buttons */}
               <div className="flex flex-col gap-2 md:gap-3 mt-4">
-                <Button 
-                  type="primary" 
+                <Button
+                  type="primary"
                   size={window.innerWidth < 640 ? "middle" : "large"}
                   block
                   icon={<CalendarOutlined />}
                   className="bg-blue-600 hover:bg-blue-700"
                   onClick={() => {
-                    message.success('Viewing listing details');
+                    message.success("Viewing listing details");
                     setVisible(false);
                     // Navigate to the listing details page
-                    navigate(`/listings/${selectedListing._id}`)
+                    navigate(`/listings/${selectedListing._id}`);
                   }}
                 >
                   View Details
                 </Button>
-                
+
                 <div className="grid grid-cols-2 gap-2 md:gap-3">
-                  <Button 
+                  <Button
                     icon={<PhoneOutlined />}
                     size={window.innerWidth < 640 ? "middle" : "large"}
                     onClick={() => {
                       // Use owner's phone if available
-                      const phoneNumber = selectedListing.owner?.phone || "917435070468";
+                      const phoneNumber =
+                        selectedListing.owner?.phone || "917435070468";
                       window.location.href = `tel:${phoneNumber}`;
                       message.info(`Calling owner at ${phoneNumber}`);
                     }}
@@ -421,16 +491,18 @@ const GallerySection = () => {
                     <span className="hidden xs:inline">Contact Owner</span>
                     <span className="inline xs:hidden">Call</span>
                   </Button>
-                  <Button 
+                  <Button
                     icon={<ShareAltOutlined />}
                     size={window.innerWidth < 640 ? "middle" : "large"}
                     onClick={() => {
                       const domain = window.location.origin;
                       const listingUrl = `${domain}/listings/${selectedListing._id}`;
                       const shareText = `Check out this amazing property: ${selectedListing.name}!`;
-                      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText + ' ' + listingUrl)}`;
-                      window.open(whatsappUrl, '_blank');
-                      message.success('Opening WhatsApp to share this listing');
+                      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(
+                        shareText + " " + listingUrl
+                      )}`;
+                      window.open(whatsappUrl, "_blank");
+                      message.success("Opening WhatsApp to share this listing");
                     }}
                   >
                     Share

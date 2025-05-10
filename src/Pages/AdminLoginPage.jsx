@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 const AdminLoginPage = () => {
   const navigate = useNavigate();
@@ -19,8 +19,8 @@ const AdminLoginPage = () => {
 
   const handleLogin = async () => {
     setLoading(true);
-    setError('');
-    
+    setError("");
+
     try {
       // Form validation
       if (!email || !password) {
@@ -57,7 +57,7 @@ const AdminLoginPage = () => {
 
         // Redirect to admin dashboard
         setTimeout(() => {
-          navigate('/admin/dashboard');
+          navigate("/admin/dashboard");
         }, 1500);
       }
     } catch (err) {
