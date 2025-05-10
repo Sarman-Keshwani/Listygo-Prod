@@ -1,18 +1,25 @@
+// Jenkinsfile
 pipeline {
   agent any
 
   stages {
     stage('Pull Code') {
       steps {
-          git (
-            url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git',
-            branch: 'main'
-        )
+        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+      }
+    }
+
+    stage('Install & Build') {
+      steps {
+        // run the full JS build on the agent itself
+        sh 'npm ci'
+        sh 'npm run build'
       }
     }
 
     stage('Build Docker Image') {
       steps {
+        // now just package the already-built dist folder
         sh 'docker build -t home-frontend .'
       }
     }
