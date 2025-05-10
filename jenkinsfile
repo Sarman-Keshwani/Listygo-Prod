@@ -16,13 +16,9 @@ pipeline {
 
     stage('Install & Build') {
       steps {
-        script {
-          // run npm inside a Node container
-          docker.image('node:18').inside("-v ${NPM_CACHE}:/root/.npm") {
-            sh 'npm ci'
-            sh 'npm run build'
-          }
-        }
+        // Replace the docker pipeline plugin syntax with direct shell commands
+        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app node:18 npm ci"
+        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app node:18 npm run build"
       }
     }
 
