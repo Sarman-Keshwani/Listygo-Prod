@@ -1,51 +1,49 @@
 #--------------------------------------
-# 1) Install dependencies (cached)
+# Stage 1: Install dependencies (cached)
 #--------------------------------------
 FROM node:18 AS deps
 
-WORKDIR /src
+WORKDIR /app
 
-# Copy only package files to leverage cache
+# Copy only package manifests to maximize cache reuse
 COPY package*.json ./
 
-# Use npm ci for fast, clean installs
+# Use npm ci for fast, reproducible installs
 RUN npm ci
 
+
+
 #--------------------------------------
-# 2) Build your app
+# Stage 2: Build your app
 #--------------------------------------
 FROM node:18 AS build
 
-WORKDIR /src
+WORKDIR /app
 
-# Copy cached node_modules from deps stage
-COPY --from=deps /src/node_modules ./node_modules
+# Pull in cached node_modules from deps
+COPY --from=deps /app/node_modules ./node_modules
 
-# Copy the rest of your source
+# Copy the rest of your source code
 COPY . .
 
-# Build with increased memory if needed
+# Build with extra heap if needed
 RUN NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
-# (Optional) inspect where the build output landed
-RUN echo "Build output:" && ls -l ./dist
+
 
 #--------------------------------------
-# 3) Build final image for nginx
+# Stage 3: Serve with nginx
 #--------------------------------------
-FROM nginx:alpine
+FROM nginx:alpine AS production
 
-# 1) Serve your built files
-COPY --from=build /src/dist /usr/share/nginx/html
+# Copy built assets
+COPY --from=build /app/dist /usr/share/nginx/html
 
-# 2) Your custom nginx config
+# Copy your custom nginx config (make sure nginx.conf is alongside this Dockerfile)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# 3) (If you use proxy_params, copy it here too)
-# COPY proxy_params /etc/nginx/proxy_params
-
+# Expose HTTP port
 EXPOSE 80
 
-# If you want a quick healthcheck (optional)
-HEALTHCHECK --interval=30s --timeout=5s \
-    CMD wget --spider http://localhost/ || exit 1
+# (Optional) healthcheck if desired:
+# HEALTHCHECK --interval=30s --timeout=5s CMD [ "wget", "--spider", "http://localhost/" ] || exit 1
