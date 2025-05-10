@@ -3,10 +3,8 @@ pipeline {
   agent any
 
   environment {
-    // optional: persist npm cache between builds
-    NPM_CACHE = "${HOME}/.npm"
-    // Set Node options to reduce memory usage
-    NODE_OPTIONS = "--max-old-space-size=4096"
+    // Define any environment variables needed
+    DOCKER_BUILDKIT = "1"  // Enable Docker BuildKit for better performance
   }
 
   stages {
@@ -16,20 +14,16 @@ pipeline {
       }
     }
 
-    stage('Install & Build') {
-      steps {
-        // Install dependencies with --production flag
-        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app -e NODE_OPTIONS='--max-old-space-size=4096' --memory=6g node:18 npm ci --production=false"
-        
-        // Build with increased memory limit
-        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app -e NODE_OPTIONS='--max-old-space-size=4096' --memory=6g node:18 npm run build"
-      }
-    }
-
     stage('Build Docker Image') {
       steps {
-        // this now only packages your built /dist folder
-        sh 'docker build -t home-frontend .'
+        // Let Docker handle the build with increased memory limits
+        sh '''
+          docker build \
+            --memory=8g \
+            --memory-swap=10g \
+            --build-arg NODE_OPTIONS="--max-old-space-size=4096" \
+            -t home-frontend .
+        '''
       }
     }
 
@@ -41,6 +35,15 @@ pipeline {
           docker run -d --name home-frontend-1 -p 5173:80 home-frontend
         '''
       }
+    }
+  }
+
+  post {
+    failure {
+      echo 'Build failed! Check logs for details.'
+    }
+    success {
+      echo 'Build succeeded!'
     }
   }
 }

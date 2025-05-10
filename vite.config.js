@@ -10,18 +10,27 @@ export default defineConfig({
   build: {
     // Use faster build target
     target: 'es2015',
-    // Reduce chunk size
-    chunkSizeWarningLimit: 1000,
-    // Turn off source maps in production
+    // Increase chunk size warning to avoid console noise
+    chunkSizeWarningLimit: 1500,
+    // Disable source maps in production
     sourcemap: false,
-    // Split chunks more aggressively
+    // Split vendor chunks better
     rollupOptions: {
       output: {
-        manualChunks(id) {
+        manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+            // Split node_modules into separate chunks
+            return 'vendor';
           }
         }
+      }
+    },
+    // Force minification even with large files
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
       }
     }
   }
