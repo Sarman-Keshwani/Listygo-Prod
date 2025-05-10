@@ -1,4 +1,3 @@
-// Jenkinsfile
 pipeline {
   agent any
 
@@ -10,8 +9,16 @@ pipeline {
     }
 
     stage('Install & Build') {
+      // Run this whole stage in a Node.js container
+      agent {
+        docker {
+          image 'node:18'
+          // Persist npm cache between builds (optional)
+          args  '-v $HOME/.npm:/root/.npm'
+        }
+      }
       steps {
-        // run the full JS build on the agent itself
+        // Ensure we’re in the workspace root
         sh 'npm ci'
         sh 'npm run build'
       }
@@ -19,7 +26,7 @@ pipeline {
 
     stage('Build Docker Image') {
       steps {
-        // now just package the already-built dist folder
+        // Now that dist/ exists, this is lightning-fast
         sh 'docker build -t home-frontend .'
       }
     }
@@ -28,7 +35,7 @@ pipeline {
       steps {
         sh '''
           docker stop home-frontend-1 || true
-          docker rm home-frontend-1 || true
+          docker rm   home-frontend-1 || true
           docker run -d --name home-frontend-1 -p 5173:80 home-frontend
         '''
       }

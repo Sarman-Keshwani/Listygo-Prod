@@ -1,12 +1,16 @@
-# Dockerfile
-# (no Node stages any more — dist is already built by Jenkins)
-
+#--------------------------------------
+# Final image: just serve your built SPA
+#--------------------------------------
 FROM nginx:alpine
 
-# 1) Copy your static build output
+# Copy your already-built static site
 COPY dist /usr/share/nginx/html
 
-# 2) Your custom nginx config
+# Your SPA routing + proxy config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+
+# Optional healthcheck
+HEALTHCHECK --interval=30s --timeout=5s \
+    CMD wget --spider http://localhost/ || exit 1
