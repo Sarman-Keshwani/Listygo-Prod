@@ -1,5 +1,11 @@
+// Jenkinsfile
 pipeline {
   agent any
+
+  environment {
+    // optional: persist npm cache between builds
+    NPM_CACHE = "${HOME}/.npm"
+  }
 
   stages {
     stage('Pull Code') {
@@ -9,24 +15,20 @@ pipeline {
     }
 
     stage('Install & Build') {
-      // Run this whole stage in a Node.js container
-      agent {
-        docker {
-          image 'node:18'
-          // Persist npm cache between builds (optional)
-          args  '-v $HOME/.npm:/root/.npm'
-        }
-      }
       steps {
-        // Ensure we’re in the workspace root
-        sh 'npm ci'
-        sh 'npm run build'
+        script {
+          // run npm inside a Node container
+          docker.image('node:18').inside("-v ${NPM_CACHE}:/root/.npm") {
+            sh 'npm ci'
+            sh 'npm run build'
+          }
+        }
       }
     }
 
     stage('Build Docker Image') {
       steps {
-        // Now that dist/ exists, this is lightning-fast
+        // this now only packages your built /dist folder
         sh 'docker build -t home-frontend .'
       }
     }
