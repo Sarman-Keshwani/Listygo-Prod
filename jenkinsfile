@@ -4,7 +4,10 @@ pipeline {
   stages {
     stage('Pull Code') {
       steps {
-        git 'https://github.com/Sarman-Keshwani/Listygo-Prod.git'
+          git (
+            url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git',
+            branch: 'main'
+        )
       }
     }
 
