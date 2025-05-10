@@ -5,6 +5,8 @@ pipeline {
   environment {
     // optional: persist npm cache between builds
     NPM_CACHE = "${HOME}/.npm"
+    // Set Node options to reduce memory usage
+    NODE_OPTIONS = "--max-old-space-size=4096"
   }
 
   stages {
@@ -16,9 +18,11 @@ pipeline {
 
     stage('Install & Build') {
       steps {
-        // Replace the docker pipeline plugin syntax with direct shell commands
-        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app node:18 npm ci"
-        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app node:18 npm run build"
+        // Install dependencies with --production flag
+        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app -e NODE_OPTIONS='--max-old-space-size=4096' --memory=6g node:18 npm ci --production=false"
+        
+        // Build with increased memory limit
+        sh "docker run --rm -v ${WORKSPACE}:/app -v ${NPM_CACHE}:/root/.npm -w /app -e NODE_OPTIONS='--max-old-space-size=4096' --memory=6g node:18 npm run build"
       }
     }
 
