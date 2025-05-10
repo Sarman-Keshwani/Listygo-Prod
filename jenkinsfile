@@ -1,6 +1,15 @@
 // Jenkinsfile
 pipeline {
   agent any
+  
+  options {
+    // Add timeout to prevent hanging builds
+    timeout(time: 30, unit: 'MINUTES')
+    // Enable build durability to survive restarts
+    durabilityHint 'PERFORMANCE_OPTIMIZED'
+    // Preserve stashes and artifacts on failure
+    preserveStashes(buildCount: 5)
+  }
 
   environment {
     // Define any environment variables needed
@@ -16,14 +25,7 @@ pipeline {
 
     stage('Build Docker Image') {
       steps {
-        // Let Docker handle the build with increased memory limits
-        sh '''
-          docker build \
-            --memory=8g \
-            --memory-swap=10g \
-            --build-arg NODE_OPTIONS="--max-old-space-size=4096" \
-            -t home-frontend .
-        '''
+        sh 'chmod +x ./build.sh && ./build.sh'
       }
     }
 
