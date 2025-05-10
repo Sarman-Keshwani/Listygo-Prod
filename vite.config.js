@@ -25,13 +25,7 @@ export default defineConfig({
         }
       }
     },
-    // Force minification even with large files
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true
-      }
-    }
+    // Use esbuild instead of terser (esbuild is faster but slightly larger output)
+    minify: 'esbuild',
   }
 })
