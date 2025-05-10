@@ -4,8 +4,25 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  
   plugins: [react(),
     tailwindcss(),
   ],
+  build: {
+    // Use faster build target
+    target: 'es2015',
+    // Reduce chunk size
+    chunkSizeWarningLimit: 1000,
+    // Turn off source maps in production
+    sourcemap: false,
+    // Split chunks more aggressively
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return id.toString().split('node_modules/')[1].split('/')[0].toString();
+          }
+        }
+      }
+    }
+  }
 })
