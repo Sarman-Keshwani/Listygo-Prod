@@ -1,5 +1,5 @@
 pipeline {
-  agent { label 'node-high-mem' }  // agent with Node + ≥8GB RAM
+  agent any
 
   options {
     timeout(time: 15, unit: 'MINUTES')
@@ -7,55 +7,41 @@ pipeline {
     skipDefaultCheckout()
   }
 
-  stage('Build Frontend') {
-    steps {
-      sh '''
-        docker run --rm \
-          --memory 0 \
-          -e NODE_OPTIONS="--max-old-space-size=4096" \
-          -v "$PWD":/app \
-          -w /app \
-          node:20-slim \
-          sh -c "npm install && npm run build"
-      '''
-      stash name: 'frontend-dist', includes: 'dist/**'
-    }
-}
-
-
   stages {
-    stage('Checkout & Build') {
+    stage('Clean & Checkout') {
       steps {
         cleanWs()
         git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
-
-        // Build with the agent’s full resources
-        sh '''
-          npm ci
-          npm run build
-        '''
-        // dist/ now contains your production bundle
       }
-      post {
-        success {
-          stash name: 'frontend-dist', includes: 'dist/**'
-        }
+    }
+
+    stage('Build Frontend') {
+      steps {
+        // Build inside a Node container with unlimited memory + 4 GB heap
+        sh '''
+          docker run --rm \
+            --memory 0 \
+            -e NODE_OPTIONS="--max-old-space-size=4096" \
+            -v "$PWD":/app \
+            -w /app \
+            node:20-slim \
+            sh -c "npm install && npm run build"
+        '''
+        stash name: 'frontend-dist', includes: 'dist/**'
       }
     }
 
     stage('Build Static Image') {
-      agent any  // back on any docker‐capable node
       steps {
         unstash 'frontend-dist'
-
-        // Copy the static assets into a minimal Nginx image
         sh '''
+          # Create a minimal Dockerfile_serving static files
           cat > Dockerfile.static << 'EOF'
           FROM nginx:stable-alpine
           COPY dist/ /usr/share/nginx/html
           COPY nginx.conf /etc/nginx/conf.d/default.conf
           EXPOSE 80
-          HEALTHCHECK --interval=30s --timeout=3s \
+          HEALTHCHECK --interval=30s --timeout=3s \\
             CMD wget -q -O /dev/null http://localhost/ || exit 1
           EOF
 
@@ -78,7 +64,11 @@ pipeline {
   }
 
   post {
-    success { echo '✅ Frontend built & deployed in <2min!' }
-    failure { echo '❌ Frontend build or deploy failed—check logs.' }
+    success {
+      echo '✅ Frontend built & deployed in <2min!'
+    }
+    failure {
+      echo '❌ Frontend build or deploy failed—check logs above.'
+    }
   }
 }
