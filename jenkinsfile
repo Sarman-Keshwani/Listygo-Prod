@@ -7,6 +7,22 @@ pipeline {
     skipDefaultCheckout()
   }
 
+  stage('Build Frontend') {
+    steps {
+      sh '''
+        docker run --rm \
+          --memory 0 \
+          -e NODE_OPTIONS="--max-old-space-size=4096" \
+          -v "$PWD":/app \
+          -w /app \
+          node:20-slim \
+          sh -c "npm install && npm run build"
+      '''
+      stash name: 'frontend-dist', includes: 'dist/**'
+    }
+}
+
+
   stages {
     stage('Checkout & Build') {
       steps {
