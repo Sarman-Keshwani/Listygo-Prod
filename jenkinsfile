@@ -17,9 +17,8 @@ pipeline {
 
     stage('Build Frontend') {
       steps {
-        // Use Docker to run Node.js commands with improved memory settings
+        // Create an extremely memory-optimized Vite config
         sh '''
-          # Write Vite config to file with more aggressive chunking strategy
           cat > vite.config.production.js << 'EOF'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -27,38 +26,51 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    target: 'es2015',
-    chunkSizeWarningLimit: 2000,
+    // Target modern browsers only to reduce polyfill size
+    target: 'esnext',
+    // Less warnings in console
+    chunkSizeWarningLimit: 3000,
+    // Disable sourcemaps to save memory
     sourcemap: false,
+    // Use fastest minifier
     minify: 'esbuild',
-    assetsInlineLimit: 4096, // Reduce asset inlining
+    // Don't inline assets
+    assetsInlineLimit: 0,
+    // Split into many smaller chunks to reduce memory pressure
     rollupOptions: {
       output: {
-        // More aggressive code splitting to reduce memory usage
+        // Maximize code splitting
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
             if (id.includes('react-dom')) return 'react-dom';
             if (id.includes('react')) return 'react-core';
-            if (id.includes('@ant-design')) return 'antd';
+            if (id.includes('@ant-design/icons')) return 'antd-icons';
+            if (id.includes('@ant-design')) return 'antd-core';
             if (id.includes('framer-motion')) return 'framer-motion';
-            // Split other large libraries
-            return 'vendor';
+            if (id.includes('lucide')) return 'lucide';
+            if (id.includes('axios')) return 'axios';
+            if (id.includes('dayjs')) return 'dayjs';
+            // Return filename-based chunks for other node_modules
+            const fileName = id.split('/').pop().split('.')[0];
+            return `vendor-${fileName}`;
           }
-        }
+        },
+        // Ensure assets are in separate directory
+        assetFileNames: 'assets/[name]-[hash].[ext]',
       }
-    }
+    },
   }
 })
 EOF
 
-          # Fix Docker command syntax and add larger memory limits
+          # Try a build with minimal dependencies first to reduce memory usage
           docker run --rm \
             -v "$(pwd):/app" \
             -w "/app" \
             --memory=16g \
             --memory-swap=20g \
             node:20-slim \
-            sh -c "export NODE_OPTIONS='--max-old-space-size=12288' && npm install --legacy-peer-deps && npm run build -- --config vite.config.production.js"
+            sh -c "export NODE_OPTIONS='--max-old-space-size=12288' && npm install --no-save --omit=dev @vitejs/plugin-react react react-dom && npm run build -- --config vite.config.production.js || (echo 'Minimal build failed, trying full build' && npm install --legacy-peer-deps && npm run build -- --config vite.config.production.js)"
         '''
         stash name: 'frontend-dist', includes: 'dist/**'
       }
