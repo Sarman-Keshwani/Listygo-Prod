@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   options {
-    timeout(time: 15, unit: 'MINUTES')
+    timeout(time: 25, unit: 'MINUTES')  // Increased timeout
     preserveStashes(buildCount: 5)
     skipDefaultCheckout()
   }
@@ -17,15 +17,47 @@ pipeline {
 
     stage('Build Frontend') {
       steps {
-        // Build inside a Node container with unlimited memory + 4 GB heap
+        // Create optimized vite config for production
+        sh '''
+          cat > vite.config.production.js << 'EOF'
+          import { defineConfig } from 'vite'
+          import react from '@vitejs/plugin-react'
+
+          export default defineConfig({
+            plugins: [react()],
+            build: {
+              target: 'es2015',
+              chunkSizeWarningLimit: 2000,
+              sourcemap: false,
+              minify: 'esbuild',
+              // Split into smaller chunks to reduce memory usage
+              rollupOptions: {
+                output: {
+                  manualChunks(id) {
+                    if (id.includes('node_modules')) {
+                      // Create separate chunks for large dependencies
+                      if (id.includes('react')) return 'react-vendor';
+                      if (id.includes('@ant-design')) return 'antd-vendor';
+                      return 'vendor';
+                    }
+                  }
+                }
+              }
+            }
+          })
+          EOF
+        '''
+
+        // Build with more memory and optimized config
         sh '''
           docker run --rm \
-            --memory 0 \
-            -e NODE_OPTIONS="--max-old-space-size=4096" \
+            --memory 12g \
+            --memory-swap 16g \
+            -e NODE_OPTIONS="--max-old-space-size=8192" \
             -v "$PWD":/app \
             -w /app \
             node:20-slim \
-            sh -c "npm install && npm run build"
+            sh -c "npm install --legacy-peer-deps && VITE_NETWORK_TIMEOUT=120000 npm run build -- --config vite.config.production.js"
         '''
         stash name: 'frontend-dist', includes: 'dist/**'
       }
