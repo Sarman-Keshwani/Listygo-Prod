@@ -12,15 +12,15 @@ ENV VITE_BUILD_VERSION=${BUILD_VERSION}
 ARG VITE_NETWORK_TIMEOUT=60000
 ENV VITE_NETWORK_TIMEOUT=${VITE_NETWORK_TIMEOUT}
 
-# Ensure we're in production mode
-ENV NODE_ENV=production
+# Ensure devDependencies are installed for build (unset NODE_ENV)
+ENV NODE_ENV=
 
-# 1. Install dependencies (using npm install to avoid lockfile mismatches)
+# Install dependencies (both dependencies and devDependencies)
 COPY package.json package-lock.json ./
 RUN npm config set fetch-timeout $VITE_NETWORK_TIMEOUT \
-    && npm install
+    && npm ci --prefer-offline
 
-# 2. Copy source code and build
+# Copy source code and build
 COPY . ./
 RUN npm run build
 
@@ -37,6 +37,6 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
-# Healthcheck
+# Healthcheck for container
 HEALTHCHECK --interval=30s --timeout=3s \
     CMD wget -q -O /dev/null http://localhost/ || exit 1
