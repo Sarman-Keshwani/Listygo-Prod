@@ -1,5 +1,6 @@
 pipeline {
-  agent any
+  agent { label 'node-high-mem' }  // agent with Node + ≥8GB RAM
+
   options {
     timeout(time: 15, unit: 'MINUTES')
     preserveStashes(buildCount: 5)
@@ -7,47 +8,61 @@ pipeline {
   }
 
   stages {
-    stage('Clean & Checkout') {
+    stage('Checkout & Build') {
       steps {
         cleanWs()
         git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+
+        // Build with the agent’s full resources
+        sh '''
+          npm ci
+          npm run build
+        '''
+        // dist/ now contains your production bundle
+      }
+      post {
+        success {
+          stash name: 'frontend-dist', includes: 'dist/**'
+        }
       }
     }
 
-    stage('Build Frontend') {
-      steps {
-        sh '''
-          docker run --rm \
-            -v "$PWD":/app \
-            -w /app \
-            node:20-slim \
-            sh -c "npm install && npm run build"
-        '''
-        stash name: 'frontend-dist', includes: 'dist/**'
-      }
-}
-
-    stage('Deploy Static via Nginx') {
+    stage('Build Static Image') {
+      agent any  // back on any docker‐capable node
       steps {
         unstash 'frontend-dist'
+
+        // Copy the static assets into a minimal Nginx image
+        sh '''
+          cat > Dockerfile.static << 'EOF'
+          FROM nginx:stable-alpine
+          COPY dist/ /usr/share/nginx/html
+          COPY nginx.conf /etc/nginx/conf.d/default.conf
+          EXPOSE 80
+          HEALTHCHECK --interval=30s --timeout=3s \
+            CMD wget -q -O /dev/null http://localhost/ || exit 1
+          EOF
+
+          docker build -f Dockerfile.static -t home-frontend-static .
+        '''
+      }
+    }
+
+    stage('Deploy') {
+      steps {
         sh '''
           docker rm -f home-frontend-1 || true
           docker run -d \
             --name home-frontend-1 \
             -p 5173:80 \
-            -v "$PWD/dist":/usr/share/nginx/html:ro \
-            nginx:stable-alpine
+            home-frontend-static
         '''
       }
     }
   }
 
   post {
-    success {
-      echo '✅ Frontend built & deployed in under a minute!'
-    }
-    failure {
-      echo '❌ Frontend build or deploy failed—check logs above.'
-    }
+    success { echo '✅ Frontend built & deployed in <2min!' }
+    failure { echo '❌ Frontend build or deploy failed—check logs.' }
   }
 }
