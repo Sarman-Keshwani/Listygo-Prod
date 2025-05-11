@@ -11,12 +11,7 @@ pipeline {
       steps {
         script {
           echo "🧹 Cleaning workspace…"
-          // try deleteDir or cleanWs
-          try {
-            deleteDir()
-          } catch (err) {
-            echo "⚠️ deleteDir failed: ${err}, continuing..."
-          }
+          cleanWs()
         }
       }
     }
@@ -27,25 +22,16 @@ pipeline {
       }
     }
 
-    stage('Verify Files') {
-      steps {
-        sh 'ls -al .'
-      }
-    }
-
     stage('Build & Deploy') {
       steps {
         sh '''
-          # free up port 5173
+          # free up 5173
           for c in $(docker ps --filter "publish=5173" --format "{{.ID}}"); do
             docker stop $c && docker rm $c
           done
 
-          # build frontend
-          export BUILD_VERSION=$(date +%s)
+          BUILD_VERSION=$(date +%s)
           docker build --no-cache --build-arg BUILD_VERSION=$BUILD_VERSION -t home-frontend .
-
-          # redeploy
           docker rm -f home-frontend-1 || true
           docker run -d --name home-frontend-1 -p 5173:80 home-frontend
         '''
@@ -54,7 +40,7 @@ pipeline {
   }
 
   post {
-    success { echo '✅ Frontend deployed successfully!' }
-    failure { echo '❌ Frontend build or deploy failed—check logs.' }
+    success { echo '✅ Frontend deployed!' }
+    failure { echo '❌ Frontend failed—see above.' }
   }
 }
