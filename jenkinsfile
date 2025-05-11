@@ -19,15 +19,13 @@ pipeline {
         sh '''
           docker run --rm \
             -v "$PWD":/app \
-            -v jenkins_npm_cache:/root/.npm \
-            -v jenkins_node_modules:/app/node_modules \
             -w /app \
             node:20-slim \
-            sh -c "npm ci && npm run build"
+            sh -c "npm install && npm run build"
         '''
         stash name: 'frontend-dist', includes: 'dist/**'
       }
-    }
+}
 
     stage('Deploy Static via Nginx') {
       steps {
