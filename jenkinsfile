@@ -23,6 +23,36 @@ pipeline {
           
           # Edit package.json to use development mode (uses less memory)
           sed -i 's/"build": "vite build"/"build": "vite build --mode development"/' package.json
+          
+          # Create production Vite config file
+          cat > vite.config.production.js << 'EOF'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    target: 'esnext',
+    chunkSizeWarningLimit: 3000,
+    sourcemap: false,
+    minify: 'esbuild',
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom')) return 'react-dom';
+            if (id.includes('react')) return 'react-core';
+            if (id.includes('@ant-design')) return 'antd';
+            if (id.includes('framer-motion')) return 'framer-motion';
+            return 'vendor';
+          }
+        }
+      }
+    }
+  }
+})
+EOF
         '''
       }
     }
