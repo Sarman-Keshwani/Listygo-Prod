@@ -2,32 +2,61 @@ pipeline {
   agent any
 
   options {
-    timeout(time: 15, unit: 'MINUTES')    // shorter since we won’t docker-build
-    skipDefaultCheckout()                 // we’ll do it manually
+    timeout(time: 15, unit: 'MINUTES')
+    preserveStashes(buildCount: 5)
+    skipDefaultCheckout()
   }
 
   stages {
-    stage('Checkout & Build') {
+    stage('Clean Workspace') {
       steps {
-        deleteDir()
-        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+        // Force-clean old workspace
+        script {
+          try {
+            cleanWs()
+          } catch (e) {
+            echo "⚠️ cleanWs failed, proceeding anyway: ${e}"
+          }
+        }
+      }
+    }
 
-        // Install deps & build on the agent
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+      }
+    }
+
+    stage('Build Frontend') {
+      // Use a Node container to run npm
+      agent {
+        docker { 
+          image 'node:20-slim'
+          args  '--user root' 
+        }
+      }
+      steps {
         sh '''
           npm ci
           npm run build
         '''
-        // dist/ now contains your production bundle
+      }
+      post {
+        success {
+          stash name: 'frontend-dist', includes: 'dist/**'
+        }
       }
     }
 
     stage('Deploy Static via Nginx') {
+      agent { label 'docker' } // back on a docker-capable agent
       steps {
+        unstash 'frontend-dist'
         sh '''
-          # Tear down any old container on 5173
+          # Remove any previous container on 5173
           docker rm -f home-frontend-1 || true
 
-          # Run Nginx, mounting dist/ into its html dir
+          # Run Nginx, mounting dist/ as read-only
           docker run -d \
             --name home-frontend-1 \
             -p 5173:80 \
@@ -40,10 +69,10 @@ pipeline {
 
   post {
     success {
-      echo '✅ Frontend built and deployed in under a minute!'
+      echo '✅ Frontend built & deployed in <1min!'
     }
     failure {
-      echo '❌ Something went wrong—check the logs above.'
+      echo '❌ Frontend build or deploy failed—check logs above.'
     }
   }
 }
