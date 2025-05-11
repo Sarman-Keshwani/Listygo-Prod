@@ -17,9 +17,9 @@ pipeline {
 
     stage('Build Frontend') {
       steps {
-        // Use Docker to run Node.js commands
+        // Use Docker to run Node.js commands with improved memory settings
         sh '''
-          # Write Vite config to file
+          # Write Vite config to file with more aggressive chunking strategy
           cat > vite.config.production.js << 'EOF'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -31,12 +31,17 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
     sourcemap: false,
     minify: 'esbuild',
+    assetsInlineLimit: 4096, // Reduce asset inlining
     rollupOptions: {
       output: {
-        manualChunks(id) {
+        // More aggressive code splitting to reduce memory usage
+        manualChunks: (id) => {
           if (id.includes('node_modules')) {
-            if (id.includes('react')) return 'react-vendor';
-            if (id.includes('@ant-design')) return 'antd-vendor';
+            if (id.includes('react-dom')) return 'react-dom';
+            if (id.includes('react')) return 'react-core';
+            if (id.includes('@ant-design')) return 'antd';
+            if (id.includes('framer-motion')) return 'framer-motion';
+            // Split other large libraries
             return 'vendor';
           }
         }
@@ -46,8 +51,14 @@ export default defineConfig({
 })
 EOF
 
-          # Run build in Docker container
-          docker run --rm -v "$(pwd):/app" -w /app node:20-slim sh -c "export NODE_OPTIONS='--max-old-space-size=8192' && npm install --legacy-peer-deps && npm run build -- --config vite.config.production.js"
+          # Fix Docker command syntax and add larger memory limits
+          docker run --rm \
+            -v "$(pwd):/app" \
+            -w "/app" \
+            --memory=16g \
+            --memory-swap=20g \
+            node:20-slim \
+            sh -c "export NODE_OPTIONS='--max-old-space-size=12288' && npm install --legacy-peer-deps && npm run build -- --config vite.config.production.js"
         '''
         stash name: 'frontend-dist', includes: 'dist/**'
       }
