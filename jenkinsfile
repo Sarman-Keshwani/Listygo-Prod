@@ -1,62 +1,37 @@
 pipeline {
   agent any
-
   options {
     timeout(time: 15, unit: 'MINUTES')
-    preserveStashes(buildCount: 5)
     skipDefaultCheckout()
   }
 
   stages {
-    stage('Clean Workspace') {
+    stage('Clean & Checkout') {
       steps {
-        // Force-clean old workspace
-        script {
-          try {
-            cleanWs()
-          } catch (e) {
-            echo "⚠️ cleanWs failed, proceeding anyway: ${e}"
-          }
-        }
-      }
-    }
-
-    stage('Checkout') {
-      steps {
+        deleteDir()
         git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
       }
     }
 
     stage('Build Frontend') {
-      // Use a Node container to run npm
-      agent {
-        docker { 
-          image 'node:20-slim'
-          args  '--user root' 
-        }
-      }
       steps {
+        // Use the official Node image to compile your React app
         sh '''
-          npm ci
-          npm run build
+          docker run --rm \
+            -v "$PWD":/app \
+            -w /app \
+            node:20-slim \
+            sh -c "npm ci && npm run build"
         '''
-      }
-      post {
-        success {
-          stash name: 'frontend-dist', includes: 'dist/**'
-        }
+        stash name: 'frontend-dist', includes: 'dist/**'
       }
     }
 
     stage('Deploy Static via Nginx') {
-      agent { label 'docker' } // back on a docker-capable agent
       steps {
         unstash 'frontend-dist'
         sh '''
-          # Remove any previous container on 5173
           docker rm -f home-frontend-1 || true
-
-          # Run Nginx, mounting dist/ as read-only
           docker run -d \
             --name home-frontend-1 \
             -p 5173:80 \
@@ -68,11 +43,7 @@ pipeline {
   }
 
   post {
-    success {
-      echo '✅ Frontend built & deployed in <1min!'
-    }
-    failure {
-      echo '❌ Frontend build or deploy failed—check logs above.'
-    }
+    success { echo '✅ Frontend built & deployed successfully!' }
+    failure { echo '❌ Frontend build or deploy failed—check above.' }
   }
 }
