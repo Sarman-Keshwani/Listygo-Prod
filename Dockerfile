@@ -8,6 +8,10 @@ WORKDIR /app
 ARG NODE_OPTIONS
 ENV NODE_OPTIONS=${NODE_OPTIONS}
 
+# Add build version argument for cache busting
+ARG BUILD_VERSION
+ENV VITE_BUILD_VERSION=${BUILD_VERSION}
+
 # Add network timeout argument
 ARG VITE_NETWORK_TIMEOUT=60000
 ENV VITE_NETWORK_TIMEOUT=${VITE_NETWORK_TIMEOUT}
@@ -16,6 +20,9 @@ ENV VITE_NETWORK_TIMEOUT=${VITE_NETWORK_TIMEOUT}
 COPY package*.json ./
 RUN npm config set fetch-timeout ${VITE_NETWORK_TIMEOUT} && \
     npm ci --prefer-offline
+
+# Install missing dev dependencies explicitly
+RUN npm install --no-save @vitejs/plugin-react @tailwindcss/vite
 
 # Copy source files
 COPY . .
@@ -26,10 +33,8 @@ ENV NODE_ENV=production
 # Install terser for minification
 RUN npm install --no-save terser
 
-# Split the build command for better layer caching
-RUN npm run build || (echo "Build failed, retrying with additional diagnostics" && \
-    export NODE_OPTIONS="$NODE_OPTIONS --trace-gc" && \
-    npm run build)
+# Build with proper error handling
+RUN npm run build || (echo "Build failed with error $?" && exit 1)
 
 # Production stage
 FROM nginx:alpine
