@@ -31,7 +31,7 @@ pipeline {
           done
 
           BUILD_VERSION=$(date +%s)
-          docker build --no-cache --build-arg BUILD_VERSION=$BUILD_VERSION -t home-frontend .
+          docker build --build-arg BUILD_VERSION=$BUILD_VERSION -t home-frontend .
           docker rm -f home-frontend-1 || true
           docker run -d --name home-frontend-1 -p 5173:80 home-frontend
         '''
