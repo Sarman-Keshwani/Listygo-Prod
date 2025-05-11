@@ -9,9 +9,7 @@ pipeline {
   stages {
     stage('Clean & Checkout') {
       steps {
-        script {
-          try { cleanWs() } catch (e) { echo "⚠️ cleanWs failed: ${e}" }
-        }
+        cleanWs()
         git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
       }
     }
@@ -19,12 +17,13 @@ pipeline {
     stage('Build Frontend') {
       steps {
         sh '''
-          docker run --rm --memory=6g --memory-swap=6g \
-            -e NODE_OPTIONS="--max-old-space-size=4096" \
+          docker run --rm \
             -v "$PWD":/app \
+            -v jenkins_npm_cache:/root/.npm \
+            -v jenkins_node_modules:/app/node_modules \
             -w /app \
             node:20-slim \
-            sh -c "npm install && npm run build"
+            sh -c "npm ci && npm run build"
         '''
         stash name: 'frontend-dist', includes: 'dist/**'
       }
@@ -47,10 +46,10 @@ pipeline {
 
   post {
     success {
-      echo '✅ Frontend built & deployed successfully in under a minute!'
+      echo '✅ Frontend built & deployed in under a minute!'
     }
     failure {
-      echo '❌ Frontend build or deploy failed—check the logs above.'
+      echo '❌ Frontend build or deploy failed—check logs above.'
     }
   }
 }
