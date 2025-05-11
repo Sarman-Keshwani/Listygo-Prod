@@ -15,17 +15,20 @@ pipeline {
     }
 
     stage('Build Frontend') {
-      steps {
-        sh '''
-          docker run --rm \
-            -v "$PWD":/app \
-            -w /app \
-            node:20-slim \
-            sh -c "npm install && npm run build"
-        '''
-        stash name: 'frontend-dist', includes: 'dist/**'
-      }
-    }
+  steps {
+    sh '''
+      docker run --rm \
+        --memory=6g --memory-swap=6g \
+        -e NODE_OPTIONS="--max-old-space-size=4096" \
+        -v "$PWD":/app \
+        -w /app \
+        node:20-slim \
+        sh -c "npm install && npm run build"
+    '''
+    stash name: 'frontend-dist', includes: 'dist/**'
+  }
+}
+
 
     stage('Deploy Static via Nginx') {
       steps {
