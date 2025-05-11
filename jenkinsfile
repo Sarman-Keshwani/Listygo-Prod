@@ -17,8 +17,9 @@ pipeline {
 
     stage('Build Frontend') {
       steps {
-        // Create optimized vite config for production
+        // Use Docker to run Node.js commands
         sh '''
+          # Write Vite config to file
           cat > vite.config.production.js << 'EOF'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -30,12 +31,10 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
     sourcemap: false,
     minify: 'esbuild',
-    // Split into smaller chunks to reduce memory usage
     rollupOptions: {
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            // Create separate chunks for large dependencies
             if (id.includes('react')) return 'react-vendor';
             if (id.includes('@ant-design')) return 'antd-vendor';
             return 'vendor';
@@ -46,13 +45,9 @@ export default defineConfig({
   }
 })
 EOF
-        '''
 
-        // Build with more memory and optimized config
-        sh '''
-          export NODE_OPTIONS="--max-old-space-size=8192"
-          npm install --legacy-peer-deps
-          npm run build -- --config vite.config.production.js
+          # Run build in Docker container
+          docker run --rm -v "$(pwd):/app" -w /app node:20-slim sh -c "export NODE_OPTIONS='--max-old-space-size=8192' && npm install --legacy-peer-deps && npm run build -- --config vite.config.production.js"
         '''
         stash name: 'frontend-dist', includes: 'dist/**'
       }
