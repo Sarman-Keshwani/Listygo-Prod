@@ -1,20 +1,18 @@
 #!/bin/bash
-# Resilient build script that can be resumed after Jenkins restarts
+# filepath: /root/home/Listygo-Prod/build.sh
+export BUILD_VERSION=$(date +%s)
+echo "Building with version: $BUILD_VERSION"
 
-# Check if we're resuming a previous build
-if [ -d "./dist" ] && [ -f "./build.checkpoint" ]; then
-  echo "Resuming previous build..."
-else
-  echo "Starting new build..."
-  # Clean any previous artifacts
-  rm -rf ./dist ./build.checkpoint
-fi
+# Clean any previous artifacts
+rm -rf ./dist ./build.checkpoint
 
-# Build the Docker image with checkpoint capability
+# Build the Docker image with proper memory settings
 docker build \
   --memory=8g \
   --memory-swap=10g \
+  --no-cache \
   --build-arg NODE_OPTIONS="--max-old-space-size=4096" \
+  --build-arg BUILD_VERSION="$BUILD_VERSION" \
   --build-arg VITE_NETWORK_TIMEOUT=100000 \
   -t home-frontend .
 

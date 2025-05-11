@@ -30,7 +30,7 @@ const slides = [
   {
     category: "Real Estate",
     title: "Explore  Estate",
-    subtitle: "Buy, sell or rent homes and offices",
+    subtitle: "",
     image:
       "https://images.unsplash.com/photo-1570129477492-45c003edd2be?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80",
     icon: <Home size={16} />,

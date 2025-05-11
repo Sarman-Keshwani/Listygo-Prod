@@ -1,41 +1,40 @@
-# Dockerfile
+# syntax = docker/dockerfile:1.4
 
-# Build stage
-FROM node:20.11.1-slim AS build
+########################
+#  Builder Stage       #
+########################
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# Accept build arguments for NODE_OPTIONS
-ARG NODE_OPTIONS
-ENV NODE_OPTIONS=${NODE_OPTIONS}
-
-# Add network timeout argument
+# Build arguments for cache-busting and network timeout
+ARG BUILD_VERSION
+ENV VITE_BUILD_VERSION=${BUILD_VERSION}
 ARG VITE_NETWORK_TIMEOUT=60000
 ENV VITE_NETWORK_TIMEOUT=${VITE_NETWORK_TIMEOUT}
 
-# Install dependencies with higher network timeout
-COPY package*.json ./
-RUN npm config set fetch-timeout ${VITE_NETWORK_TIMEOUT} && \
-    npm ci --prefer-offline
+# Install all dependencies (including devDependencies) to ensure build plugins are present
+COPY package.json package-lock.json ./
+RUN npm config set fetch-timeout ${VITE_NETWORK_TIMEOUT} \
+    && npm install
 
-# Copy source files
-COPY . .
+# Copy application source and build
+COPY . ./
+RUN npm run build
 
-# Set production mode and disable source maps for smaller build
-ENV NODE_ENV=production
+########################
+#  Production Stage    #
+########################
+FROM nginx:stable-alpine
 
-# Install terser for minification
-RUN npm install --no-save terser
+# Copy built assets into nginx html directory
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Split the build command for better layer caching
-RUN npm run build || (echo "Build failed, retrying with additional diagnostics" && \
-    export NODE_OPTIONS="$NODE_OPTIONS --trace-gc" && \
-    npm run build)
-
-# Production stage
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
+# Use custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose HTTP port
 EXPOSE 80
 
-# Add healthcheck
-HEALTHCHECK --interval=30s --timeout=3s CMD wget -q -O /dev/null http://localhost:80/ || exit 1
+# Healthcheck for container
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD wget -q -O /dev/null http://localhost/ || exit 1

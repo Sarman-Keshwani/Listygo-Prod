@@ -1,51 +1,55 @@
-// Jenkinsfile
 pipeline {
   agent any
-  
   options {
-    // Add timeout to prevent hanging builds
-    timeout(time: 30, unit: 'MINUTES')
-    // Enable build durability to survive restarts
-    durabilityHint 'PERFORMANCE_OPTIMIZED'
-    // Preserve stashes and artifacts on failure
+    timeout(time: 15, unit: 'MINUTES')
     preserveStashes(buildCount: 5)
-  }
-
-  environment {
-    // Define any environment variables needed
-    DOCKER_BUILDKIT = "1"  // Enable Docker BuildKit for better performance
+    skipDefaultCheckout()
   }
 
   stages {
-    stage('Pull Code') {
+    stage('Clean & Checkout') {
       steps {
+        cleanWs()
         git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Build Frontend') {
       steps {
-        sh 'chmod +x ./build.sh && ./build.sh'
+        sh '''
+          docker run --rm \
+            -v "$PWD":/app \
+            -v jenkins_npm_cache:/root/.npm \
+            -v jenkins_node_modules:/app/node_modules \
+            -w /app \
+            node:20-slim \
+            sh -c "npm ci && npm run build"
+        '''
+        stash name: 'frontend-dist', includes: 'dist/**'
       }
     }
 
-    stage('Redeploy') {
+    stage('Deploy Static via Nginx') {
       steps {
+        unstash 'frontend-dist'
         sh '''
-          docker stop home-frontend-1 || true
-          docker rm   home-frontend-1 || true
-          docker run -d --name home-frontend-1 -p 5173:80 home-frontend
+          docker rm -f home-frontend-1 || true
+          docker run -d \
+            --name home-frontend-1 \
+            -p 5173:80 \
+            -v "$PWD/dist":/usr/share/nginx/html:ro \
+            nginx:stable-alpine
         '''
       }
     }
   }
 
   post {
-    failure {
-      echo 'Build failed! Check logs for details.'
-    }
     success {
-      echo 'Build succeeded!'
+      echo '✅ Frontend built & deployed in under a minute!'
+    }
+    failure {
+      echo '❌ Frontend build or deploy failed—check logs above.'
     }
   }
 }
