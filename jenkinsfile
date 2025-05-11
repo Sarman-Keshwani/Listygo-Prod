@@ -1,83 +1,60 @@
 pipeline {
   agent any
-
   options {
-    // Prevent hanging builds
     timeout(time: 30, unit: 'MINUTES')
-    // Preserve stashes/artifacts on failure
     preserveStashes(buildCount: 5)
-    // Clean checkout instead of using any old workspace
     skipDefaultCheckout()
-  }
-
-  environment {
-    DOCKER_BUILDKIT = "1"
   }
 
   stages {
     stage('Clean Workspace') {
       steps {
-        deleteDir()
+        script {
+          echo "🧹 Cleaning workspace…"
+          // try deleteDir or cleanWs
+          try {
+            deleteDir()
+          } catch (err) {
+            echo "⚠️ deleteDir failed: ${err}, continuing..."
+          }
+        }
       }
     }
 
     stage('Checkout') {
       steps {
-        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git',
-            branch: 'main'
+        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
       }
     }
 
     stage('Verify Files') {
       steps {
-        sh '''
-          echo "── Workspace ──"
-          ls -al .
-          echo "────────────────"
-        '''
+        sh 'ls -al .'
       }
     }
 
     stage('Build & Deploy') {
       steps {
-        script {
-          // Debug current durability (should be DEFAULT which is survivable)
-          echo "🔧 Durability: ${pipelineDurabilityHint()}"
-        }
         sh '''
-          # 1) Free up host port 5173
+          # free up port 5173
           for c in $(docker ps --filter "publish=5173" --format "{{.ID}}"); do
-            docker stop $c || true
-            docker rm   $c || true
+            docker stop $c && docker rm $c
           done
 
-          # 2) Build new image with cache-busting version
+          # build frontend
           export BUILD_VERSION=$(date +%s)
-          echo "Building home-frontend:$BUILD_VERSION"
-          docker build --no-cache \
-            --build-arg BUILD_VERSION=$BUILD_VERSION \
-            -t home-frontend .
+          docker build --no-cache --build-arg BUILD_VERSION=$BUILD_VERSION -t home-frontend .
 
-          # 3) Stop/remove old container
-          docker stop home-frontend-1 || true
-          docker rm   home-frontend-1 || true
-
-          # 4) Run the fresh container
-          docker run -d \
-            --name home-frontend-1 \
-            -p 5173:80 \
-            home-frontend
+          # redeploy
+          docker rm -f home-frontend-1 || true
+          docker run -d --name home-frontend-1 -p 5173:80 home-frontend
         '''
       }
     }
   }
 
   post {
-    success {
-      echo '✅ Frontend deployed successfully!'
-    }
-    failure {
-      echo '❌ Frontend build or deploy failed—check the logs above.'
-    }
+    success { echo '✅ Frontend deployed successfully!' }
+    failure { echo '❌ Frontend build or deploy failed—check logs.' }
   }
 }
