@@ -22,7 +22,7 @@ RUN npm config set fetch-timeout ${VITE_NETWORK_TIMEOUT} && \
     npm ci --prefer-offline
 
 # Install missing dev dependencies explicitly
-RUN npm install --no-save @vitejs/plugin-react @tailwindcss/vite
+RUN npm install --no-save @vitejs/plugin-react tailwindcss postcss autoprefixer
 
 # Copy source files
 COPY . .
