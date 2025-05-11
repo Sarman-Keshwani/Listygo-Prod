@@ -25,7 +25,10 @@ pipeline {
 
     stage('Build Docker Image') {
       steps {
-        sh 'chmod +x ./build.sh && ./build.sh'
+        sh '''
+          export BUILD_VERSION=$(date +%s)
+          docker build --no-cache -t home-frontend --build-arg BUILD_VERSION=$BUILD_VERSION .
+        '''
       }
     }
 
