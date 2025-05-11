@@ -5,8 +5,8 @@ pipeline {
   options {
     // Add timeout to prevent hanging builds
     timeout(time: 30, unit: 'MINUTES')
-    // Enable build durability to survive restarts
-    durabilityHint 'PERFORMANCE_OPTIMIZED'
+     // Use maximum survivability so pipeline can resume after Jenkins restarts
+    durabilityHint 'MAX_SURVIVABILITY'
     // Preserve stashes and artifacts on failure
     preserveStashes(buildCount: 5)
   }
