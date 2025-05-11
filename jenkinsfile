@@ -18,8 +18,8 @@ pipeline {
   steps {
     sh '''
       docker run --rm \
-        --memory=6g --memory-swap=6g \
-        -e NODE_OPTIONS="--max-old-space-size=4096" \
+        --memory=6g --memory-swap=6g \            # allow up to 6 GB RAM
+        -e NODE_OPTIONS="--max-old-space-size=4096" \  # give V8 a 4 GB heap
         -v "$PWD":/app \
         -w /app \
         node:20-slim \
@@ -28,6 +28,7 @@ pipeline {
     stash name: 'frontend-dist', includes: 'dist/**'
   }
 }
+
 
 
     stage('Deploy Static via Nginx') {
