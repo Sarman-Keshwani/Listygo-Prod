@@ -12,15 +12,12 @@ ENV VITE_BUILD_VERSION=${BUILD_VERSION}
 ARG VITE_NETWORK_TIMEOUT=60000
 ENV VITE_NETWORK_TIMEOUT=${VITE_NETWORK_TIMEOUT}
 
-# Ensure devDependencies are installed for build (unset NODE_ENV)
-ENV NODE_ENV=
-
-# Install dependencies (both dependencies and devDependencies)
+# Install all dependencies (including devDependencies) to ensure build plugins are present
 COPY package.json package-lock.json ./
-RUN npm config set fetch-timeout $VITE_NETWORK_TIMEOUT \
-    && npm ci --prefer-offline
+RUN npm config set fetch-timeout ${VITE_NETWORK_TIMEOUT} \
+    && npm install
 
-# Copy source code and build
+# Copy application source and build
 COPY . ./
 RUN npm run build
 
@@ -29,12 +26,13 @@ RUN npm run build
 ########################
 FROM nginx:stable-alpine
 
-# Copy built assets
+# Copy built assets into nginx html directory
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Custom nginx configuration
+# Use custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
+# Expose HTTP port
 EXPOSE 80
 
 # Healthcheck for container
