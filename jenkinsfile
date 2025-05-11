@@ -1,54 +1,83 @@
-// Jenkinsfile
 pipeline {
   agent any
-  
+
   options {
-    // Add timeout to prevent hanging builds
+    // Prevent hanging builds
     timeout(time: 30, unit: 'MINUTES')
-     // Use maximum survivability so pipeline can resume after Jenkins restarts
-    durabilityHint 'MAX_SURVIVABILITY'
-    // Preserve stashes and artifacts on failure
+    // Preserve stashes/artifacts on failure
     preserveStashes(buildCount: 5)
+    // Clean checkout instead of using any old workspace
+    skipDefaultCheckout()
   }
 
   environment {
-    // Define any environment variables needed
-    DOCKER_BUILDKIT = "1"  // Enable Docker BuildKit for better performance
+    DOCKER_BUILDKIT = "1"
   }
 
   stages {
-    stage('Pull Code') {
+    stage('Clean Workspace') {
       steps {
-        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+        deleteDir()
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git',
+            branch: 'main'
+      }
+    }
+
+    stage('Verify Files') {
       steps {
         sh '''
-          export BUILD_VERSION=$(date +%s)
-          docker build --no-cache -t home-frontend --build-arg BUILD_VERSION=$BUILD_VERSION .
+          echo "── Workspace ──"
+          ls -al .
+          echo "────────────────"
         '''
       }
     }
 
-    stage('Redeploy') {
+    stage('Build & Deploy') {
       steps {
+        script {
+          // Debug current durability (should be DEFAULT which is survivable)
+          echo "🔧 Durability: ${pipelineDurabilityHint()}"
+        }
         sh '''
+          # 1) Free up host port 5173
+          for c in $(docker ps --filter "publish=5173" --format "{{.ID}}"); do
+            docker stop $c || true
+            docker rm   $c || true
+          done
+
+          # 2) Build new image with cache-busting version
+          export BUILD_VERSION=$(date +%s)
+          echo "Building home-frontend:$BUILD_VERSION"
+          docker build --no-cache \
+            --build-arg BUILD_VERSION=$BUILD_VERSION \
+            -t home-frontend .
+
+          # 3) Stop/remove old container
           docker stop home-frontend-1 || true
           docker rm   home-frontend-1 || true
-          docker run -d --name home-frontend-1 -p 5173:80 home-frontend
+
+          # 4) Run the fresh container
+          docker run -d \
+            --name home-frontend-1 \
+            -p 5173:80 \
+            home-frontend
         '''
       }
     }
   }
 
   post {
-    failure {
-      echo 'Build failed! Check logs for details.'
-    }
     success {
-      echo 'Build succeeded!'
+      echo '✅ Frontend deployed successfully!'
+    }
+    failure {
+      echo '❌ Frontend build or deploy failed—check the logs above.'
     }
   }
 }
