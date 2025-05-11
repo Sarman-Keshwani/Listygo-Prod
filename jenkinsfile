@@ -1,46 +1,49 @@
 pipeline {
   agent any
+
   options {
-    timeout(time: 30, unit: 'MINUTES')
-    preserveStashes(buildCount: 5)
-    skipDefaultCheckout()
+    timeout(time: 15, unit: 'MINUTES')    // shorter since we won’t docker-build
+    skipDefaultCheckout()                 // we’ll do it manually
   }
 
   stages {
-    stage('Clean Workspace') {
+    stage('Checkout & Build') {
       steps {
-        script {
-          echo "🧹 Cleaning workspace…"
-          cleanWs()
-        }
-      }
-    }
-
-    stage('Checkout') {
-      steps {
+        deleteDir()
         git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+
+        // Install deps & build on the agent
+        sh '''
+          npm ci
+          npm run build
+        '''
+        // dist/ now contains your production bundle
       }
     }
 
-    stage('Build & Deploy') {
+    stage('Deploy Static via Nginx') {
       steps {
         sh '''
-          # free up 5173
-          for c in $(docker ps --filter "publish=5173" --format "{{.ID}}"); do
-            docker stop $c && docker rm $c
-          done
-
-          BUILD_VERSION=$(date +%s)
-          docker build --build-arg BUILD_VERSION=$BUILD_VERSION -t home-frontend .
+          # Tear down any old container on 5173
           docker rm -f home-frontend-1 || true
-          docker run -d --name home-frontend-1 -p 5173:80 home-frontend
+
+          # Run Nginx, mounting dist/ into its html dir
+          docker run -d \
+            --name home-frontend-1 \
+            -p 5173:80 \
+            -v "$PWD/dist":/usr/share/nginx/html:ro \
+            nginx:stable-alpine
         '''
       }
     }
   }
 
   post {
-    success { echo '✅ Frontend deployed!' }
-    failure { echo '❌ Frontend failed—see above.' }
+    success {
+      echo '✅ Frontend built and deployed in under a minute!'
+    }
+    failure {
+      echo '❌ Something went wrong—check the logs above.'
+    }
   }
 }
