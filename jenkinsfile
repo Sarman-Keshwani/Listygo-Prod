@@ -9,27 +9,26 @@ pipeline {
   stages {
     stage('Clean & Checkout') {
       steps {
-        cleanWs()
+        script {
+          try { cleanWs() } catch (e) { echo "⚠️ cleanWs failed: ${e}" }
+        }
         git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
       }
     }
 
     stage('Build Frontend') {
-  steps {
-    sh '''
-      docker run --rm \
-        --memory=6g --memory-swap=6g \            # allow up to 6 GB RAM
-        -e NODE_OPTIONS="--max-old-space-size=4096" \  # give V8 a 4 GB heap
-        -v "$PWD":/app \
-        -w /app \
-        node:20-slim \
-        sh -c "npm install && npm run build"
-    '''
-    stash name: 'frontend-dist', includes: 'dist/**'
-  }
-}
-
-
+      steps {
+        sh '''
+          docker run --rm --memory=6g --memory-swap=6g \
+            -e NODE_OPTIONS="--max-old-space-size=4096" \
+            -v "$PWD":/app \
+            -w /app \
+            node:20-slim \
+            sh -c "npm install && npm run build"
+        '''
+        stash name: 'frontend-dist', includes: 'dist/**'
+      }
+    }
 
     stage('Deploy Static via Nginx') {
       steps {
@@ -47,7 +46,11 @@ pipeline {
   }
 
   post {
-    success { echo '✅ Frontend built & deployed successfully in under a minute!' }
-    failure { echo '❌ Frontend build or deploy failed—check the logs above.' }
+    success {
+      echo '✅ Frontend built & deployed successfully in under a minute!'
+    }
+    failure {
+      echo '❌ Frontend build or deploy failed—check the logs above.'
+    }
   }
 }
