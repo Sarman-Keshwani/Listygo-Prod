@@ -58,7 +58,7 @@ import { fetchListingHours } from "../services/adminService";
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 const ListingDetailsPage = () => {
   const { id } = useParams();
@@ -71,7 +71,7 @@ const ListingDetailsPage = () => {
   const [form] = Form.useForm();
   const carouselRef = useRef(null);
   const [businessHours, setBusinessHours] = useState(null);
-  
+
   useEffect(() => {
     const fetchListing = async () => {
       try {
@@ -110,7 +110,7 @@ const ListingDetailsPage = () => {
           console.error("Error fetching business hours:", error);
         }
       };
-      
+
       getBusinessHours();
     }
   }, [listing]);
@@ -167,9 +167,7 @@ const ListingDetailsPage = () => {
   const renderBusinessHours = () => {
     if (!businessHours || businessHours.length === 0) {
       return (
-        <div className="text-gray-500 italic">
-          Business hours not available
-        </div>
+        <div className="text-gray-500 italic">Business hours not available</div>
       );
     }
 
@@ -405,18 +403,26 @@ const ListingDetailsPage = () => {
                           <span>Business Hours</span>
                         </Space>
                       </Divider>
-                      
+
                       <div className="mb-6 bg-blue-50 p-4 rounded-lg">
                         <Row gutter={[16, 16]}>
                           {businessHours.map((item, index) => (
                             <Col xs={24} sm={12} md={8} key={index}>
-                              <Card 
-                                size="small" 
+                              <Card
+                                size="small"
                                 className="border-0 bg-transparent shadow-none h-full"
                               >
                                 <div className="flex justify-between items-center">
-                                  <Text strong className="text-gray-700">{item.day}:</Text>
-                                  <Text className={item.hours === 'Closed' ? 'text-red-500' : 'text-green-600'}>
+                                  <Text strong className="text-gray-700">
+                                    {item.day}:
+                                  </Text>
+                                  <Text
+                                    className={
+                                      item.hours === "Closed"
+                                        ? "text-red-500"
+                                        : "text-green-600"
+                                    }
+                                  >
                                     {item.hours}
                                   </Text>
                                 </div>

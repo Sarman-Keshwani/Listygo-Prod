@@ -51,7 +51,7 @@ import { FiMaximize2, FiClock } from "react-icons/fi";
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 const HotelDetailsPage = () => {
   const { id } = useParams();
@@ -698,18 +698,26 @@ const HotelDetailsPage = () => {
                           <span>Business Hours</span>
                         </Space>
                       </Divider>
-                      
+
                       <div className="mb-6 bg-blue-50 p-4 rounded-lg">
                         <Row gutter={[16, 16]}>
                           {businessHours.map((item, index) => (
                             <Col xs={24} sm={12} md={8} key={index}>
-                              <Card 
-                                size="small" 
+                              <Card
+                                size="small"
                                 className="border-0 bg-transparent shadow-none h-full"
                               >
                                 <div className="flex justify-between items-center">
-                                  <Text strong className="text-gray-700">{item.day}:</Text>
-                                  <Text className={item.hours === 'Closed' ? 'text-red-500' : 'text-green-600'}>
+                                  <Text strong className="text-gray-700">
+                                    {item.day}:
+                                  </Text>
+                                  <Text
+                                    className={
+                                      item.hours === "Closed"
+                                        ? "text-red-500"
+                                        : "text-green-600"
+                                    }
+                                  >
                                     {item.hours}
                                   </Text>
                                 </div>
@@ -828,8 +836,6 @@ const HotelDetailsPage = () => {
                     </div>
                   </TabPane>
                 )}
-
-                
               </Tabs>
             </Card>
           </Col>
@@ -841,27 +847,40 @@ const HotelDetailsPage = () => {
               <Card
                 bordered={false}
                 className="shadow-md rounded-lg"
-                title={<Title level={4} className="my-0">Listing Details</Title>}
+                title={
+                  <Title level={4} className="my-0">
+                    Listing Details
+                  </Title>
+                }
               >
                 <div className="p-1">
                   <div className="flex justify-between items-center mb-3">
                     <Text className="text-gray-600">Category:</Text>
-                    <Text strong>{listing.category?.name || 'Uncategorized'}</Text>
+                    <Text strong>
+                      {listing.category?.name || "Uncategorized"}
+                    </Text>
                   </div>
-                  
+
                   <div className="flex justify-between items-center mb-3">
                     <Text className="text-gray-600">Price:</Text>
-                    <Text strong className="text-lg text-blue-600">₹{listing.price || 'Contact for pricing'}</Text>
+                    <Text strong className="text-lg text-blue-600">
+                      ₹{listing.price || "Contact for pricing"}
+                    </Text>
                   </div>
-                  
+
                   <div className="flex justify-between items-center mb-3">
                     <Text className="text-gray-600">Rating:</Text>
                     <Space>
-                      <Rate disabled defaultValue={listing.rating || 4.5} allowHalf className="text-sm" />
+                      <Rate
+                        disabled
+                        defaultValue={listing.rating || 4.5}
+                        allowHalf
+                        className="text-sm"
+                      />
                       <Text type="secondary">{listing.rating || 4.5}</Text>
                     </Space>
                   </div>
-                  
+
                   {listing.location && (
                     <div className="mb-3">
                       <div className="flex justify-between items-center mb-2">
@@ -870,19 +889,26 @@ const HotelDetailsPage = () => {
                       </div>
                       <div className="flex flex-wrap gap-2 mt-1">
                         {listing.locationLink && (
-                          <a 
-                            href={listing.locationLink.startsWith('http') ? listing.locationLink : `https://${listing.locationLink}`}
-                            target="_blank" 
+                          <a
+                            href={
+                              listing.locationLink.startsWith("http")
+                                ? listing.locationLink
+                                : `https://${listing.locationLink}`
+                            }
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline flex items-center text-sm"
                           >
-                            <EnvironmentOutlined className="mr-1" /> Location Map
+                            <EnvironmentOutlined className="mr-1" /> Location
+                            Map
                           </a>
                         )}
                         {!listing.locationLink && (
-                          <a 
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.location)}`}
-                            target="_blank" 
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                              listing.location
+                            )}`}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline flex items-center text-sm"
                           >
@@ -892,15 +918,17 @@ const HotelDetailsPage = () => {
                       </div>
                     </div>
                   )}
-                  
+
                   {listing.isFeatured && (
                     <div className="mb-3">
-                      <Tag color="gold" className="w-full text-center py-1">Featured Listing</Tag>
+                      <Tag color="gold" className="w-full text-center py-1">
+                        Featured Listing
+                      </Tag>
                     </div>
                   )}
-                  
+
                   <Divider className="my-4" />
-                  
+
                   <div className="mb-4">
                     <Text strong className="block mb-2">
                       Quick Actions
@@ -935,12 +963,16 @@ const HotelDetailsPage = () => {
                   </div>
                 </div>
               </Card>
-              
+
               {/* Contact Information Card */}
-              <Card 
-                bordered={false} 
+              <Card
+                bordered={false}
                 className="shadow-md rounded-lg"
-                title={<Title level={4} className="my-0">Contact Information</Title>}
+                title={
+                  <Title level={4} className="my-0">
+                    Contact Information
+                  </Title>
+                }
               >
                 {/* Public Contact Information */}
                 <div className="space-y-3">
@@ -950,23 +982,28 @@ const HotelDetailsPage = () => {
                       <Text copyable>{listing.contactPhone}</Text>
                     </div>
                   )}
-                  
+
                   {listing.contactEmail && (
                     <div className="flex items-center">
                       <MailOutlined className="text-blue-500 mr-3" />
                       <Text copyable>{listing.contactEmail}</Text>
                     </div>
                   )}
-                  
+
                   {listing.website && (
                     <div className="flex items-center">
                       <GlobalOutlined className="text-blue-500 mr-3" />
-                      <a href={listing.website.startsWith('http') ? listing.website : `https://${listing.website}`} 
-                         target="_blank" 
-                         rel="noopener noreferrer"
-                         className="text-blue-600 hover:underline"
+                      <a
+                        href={
+                          listing.website.startsWith("http")
+                            ? listing.website
+                            : `https://${listing.website}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
                       >
-                        {listing.website.replace(/^https?:\/\//i, '')}
+                        {listing.website.replace(/^https?:\/\//i, "")}
                       </a>
                     </div>
                   )}

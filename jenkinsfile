@@ -1,30 +1,102 @@
 pipeline {
   agent any
 
+  options {
+    timeout(time: 25, unit: 'MINUTES')
+    preserveStashes(buildCount: 5)
+    skipDefaultCheckout()
+  }
+
   stages {
-    stage('Pull Code') {
+    stage('Clean & Checkout') {
       steps {
-          git (
-            url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git',
-            branch: 'main'
-        )
+        cleanWs()
+        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Build Frontend - Preparation') {
       steps {
+        sh '''
+          # Create a simpler initial build
+          docker run --rm -v "$(pwd):/app" -w "/app" node:20-slim npm install --legacy-peer-deps
+          
+          # Edit package.json to use development mode (uses less memory)
+          sed -i 's/"build": "vite build"/"build": "vite build --mode development"/' package.json
+          
+          # Create production Vite config file
+          cat > vite.config.production.js << 'EOF'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    target: 'esnext',
+    chunkSizeWarningLimit: 3000,
+    sourcemap: false,
+    minify: 'esbuild',
+    assetsInlineLimit: 0,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-dom')) return 'react-dom';
+            if (id.includes('react')) return 'react-core';
+            if (id.includes('@ant-design')) return 'antd';
+            if (id.includes('framer-motion')) return 'framer-motion';
+            return 'vendor';
+          }
+        }
+      }
+    }
+  }
+})
+EOF
+        '''
+      }
+    }
+
+    stage('Build Frontend - Production') {
+      steps {
+        sh '''
+          # Build with reduced features
+          docker run --rm \
+            -v "$(pwd):/app" \
+            -w "/app" \
+            --memory=16g \
+            --memory-swap=20g \
+            node:20-slim \
+            sh -c "export NODE_OPTIONS='--max-old-space-size=12288 --max-semi-space-size=64' && npm run build -- --config vite.config.production.js"
+        '''
+        stash name: 'frontend-dist', includes: 'dist/**'
+      }
+    }
+
+    stage('Build Static Image') {
+      steps {
+        unstash 'frontend-dist'
         sh 'docker build -t home-frontend .'
       }
     }
 
-    stage('Redeploy') {
+    stage('Deploy') {
       steps {
         sh '''
-          docker stop home-frontend-1 || true
-          docker rm home-frontend-1 || true
-          docker run -d --name home-frontend-1 -p 5173:80 home-frontend
+          docker stop home-frontend-container || true
+          docker rm home-frontend-container || true
+          docker run -d --name home-frontend-container -p 5173:80 home-frontend
         '''
       }
+    }
+  }
+
+  post {
+    success {
+      echo '✅ Frontend built & deployed successfully!'
+    }
+    failure {
+      echo '❌ Frontend build or deploy failed—check logs above.'
     }
   }
 }

@@ -21,7 +21,7 @@ import {
 } from "@ant-design/icons";
 
 const { Title, Text, Paragraph } = Typography;
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 // This is the homepage version of the HotelCard - simplified from the full one
 const HomePageHotelCard = () => {
@@ -85,8 +85,7 @@ const HomePageHotelCard = () => {
           </div>
 
           <Title level={2} className="text-3xl md:text-4xl font-bold mb-4">
-            Our <span className="text-blue-600">Most Popular</span>{" "}
-            Listings
+            Our <span className="text-blue-600">Most Popular</span> Listings
           </Title>
 
           <Paragraph className="text-gray-600 max-w-2xl mx-auto">

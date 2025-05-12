@@ -40,7 +40,7 @@ import { FiMaximize2 } from "react-icons/fi";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 const ListingsPage = () => {
   const [listings, setListings] = useState([]);
@@ -125,7 +125,7 @@ const ListingsPage = () => {
         setError("Failed to load categories.");
       }
     };
-    
+
     const fetchListings = async () => {
       setLoading(true);
       try {
@@ -145,7 +145,7 @@ const ListingsPage = () => {
         const sort = searchParams.get("sort");
         if (sort) params.sort = sort;
         const loc = searchParams.get("location");
-        
+
         // Add pagination parameters - explicitly set defaults
         const page = searchParams.get("page") || 1;
         const limit = searchParams.get("limit") || 40; // Increased limit to show more items per page
@@ -154,26 +154,30 @@ const ListingsPage = () => {
 
         const query = new URLSearchParams(params).toString();
         console.log(`Fetching listings with query: ${query}`);
-        
+
         // Enable verbose logging for debugging
         console.log(`API URL: ${API_URL}/listings?${query}`);
-        console.log(`MongoDB connection: mongodb+srv://cyberia2k24:*****@cluster0.d4mpd1e.mongodb.net/listygo`);
-        
+        console.log(
+          `MongoDB connection: mongodb+srv://cyberia2k24:*****@cluster0.d4mpd1e.mongodb.net/listygo`
+        );
+
         const resp = await axios.get(`${API_URL}/listings?${query}`);
         console.log("API response:", resp.data);
-        
+
         let data = resp.data.data || [];
-        
+
         // Update pagination state with data from API response
         // Make sure to use the total count from the response
         setPagination({
           current: parseInt(page),
           pageSize: parseInt(limit),
-          total: resp.data.count || 0,  // Try to use count directly
+          total: resp.data.count || 0, // Try to use count directly
         });
-        
-        console.log(`Retrieved ${data.length} listings out of total ${resp.data.count}`);
-        
+
+        console.log(
+          `Retrieved ${data.length} listings out of total ${resp.data.count}`
+        );
+
         if (loc) {
           const codes = loc.split(",");
           const target = codes[codes.length - 1].toLowerCase();
@@ -199,12 +203,12 @@ const ListingsPage = () => {
     const essentialParams = {};
     if (selectedCategory) essentialParams.category = selectedCategory;
     if (searchQuery) essentialParams.search = searchQuery;
-    
+
     // Set page 1 with a large limit
     setSearchParams({
       ...essentialParams,
       page: 1,
-      limit: 40 // Show more items per page
+      limit: 40, // Show more items per page
     });
   };
 
@@ -217,7 +221,7 @@ const ListingsPage = () => {
         </div>
       );
     }
-    
+
     if (error) {
       return (
         <Alert
@@ -229,22 +233,22 @@ const ListingsPage = () => {
         />
       );
     }
-    
+
     if (listings.length === 0) {
       return (
-        <Empty 
-          description="No listings found" 
+        <Empty
+          description="No listings found"
           className="py-20"
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       );
     }
-    
+
     return (
       <div className="mb-8">
-        {viewMode === 'grid' ? (
+        {viewMode === "grid" ? (
           <Row gutter={[16, 16]}>
-            {listings.map(listing => (
+            {listings.map((listing) => (
               <Col xs={24} sm={12} md={8} lg={6} key={listing._id}>
                 {renderGridItem(listing)}
               </Col>
@@ -252,24 +256,21 @@ const ListingsPage = () => {
           </Row>
         ) : (
           <div className="space-y-4">
-            {listings.map(listing => renderListItem(listing))}
+            {listings.map((listing) => renderListItem(listing))}
           </div>
         )}
-        
+
         {/* Add total count display and debug button */}
         <div className="my-4 text-center">
           <Text type="secondary">
             Showing {listings.length} of {pagination.total} total listings
           </Text>
           <br />
-          <Button 
-            onClick={resetAndFetchAllListings} 
-            className="mt-2"
-          >
+          <Button onClick={resetAndFetchAllListings} className="mt-2">
             Reset and Show All
           </Button>
         </div>
-        
+
         {/* Pagination component */}
         <div className="mt-8 flex justify-center">
           <Pagination
@@ -278,8 +279,8 @@ const ListingsPage = () => {
             total={pagination.total}
             onChange={handlePaginationChange}
             showSizeChanger
-            pageSizeOptions={['12', '24', '36', '48']}
-            showTotal={(total, range) => 
+            pageSizeOptions={["12", "24", "36", "48"]}
+            showTotal={(total, range) =>
               `${range[0]}-${range[1]} of ${total} listings`
             }
           />
@@ -378,7 +379,10 @@ const ListingsPage = () => {
             onChange={setAmenities}
           />
           <Divider>Sort By</Divider>
-          <Radio.Group value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+          <Radio.Group
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
             <Radio value="createdAt_desc">Newest First</Radio>
             <Radio value="price_asc">Price: Low to High</Radio>
             <Radio value="price_desc">Price: High to Low</Radio>

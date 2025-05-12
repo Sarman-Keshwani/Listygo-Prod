@@ -64,7 +64,7 @@ import {
 import dayjs from "dayjs";
 import { prepareHoursForSubmission } from "../utils/hourUtils";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 const { Option } = Select;
 const { TextArea } = Input;
 const { TabPane } = Tabs;

@@ -16,15 +16,15 @@ import {
 } from "@ant-design/icons";
 
 const { Title, Text, Paragraph } = Typography;
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
 // Add custom URLs for each destination (optional)
 const destinationRedirects = {
-  "Goa": "/listings/680d04aa82ad621573f63ce4",
+  Goa: "/listings/680d04aa82ad621573f63ce4",
   "Himachal Pradesh": "/listings/680d058b82ad621573f63cfc",
-  "Kerala": "/listings/680d071182ad621573f63d63",
-  "Rajasthan": "/listings/680d05c682ad621573f63d04",
-  "Uttarakhand": "/listings/680d061082ad621573f63d0c",
+  Kerala: "/listings/680d071182ad621573f63d63",
+  Rajasthan: "/listings/680d05c682ad621573f63d04",
+  Uttarakhand: "/listings/680d061082ad621573f63d0c",
   // Add more as needed
 };
 
@@ -32,7 +32,7 @@ const destinationRedirects = {
 const destinations = [
   {
     name: "Goa",
-    image:  
+    image:
       "https://th.bing.com/th/id/R.67fd4a3cc403b7dd575af0360941a6fd?rik=HbthKIIuxzoAeg&riu=http%3a%2f%2fblog.bedandchai.com%2fwp-content%2fuploads%2f2015%2f12%2fWorld___India_Relax_on_the_beach_in_Arambol_068131_.jpg&ehk=dIxvdw6D%2fxupxS1Id3hXKJh2aipbFjjY7qNHT8A8p3A%3d&risl=&pid=ImgRaw&r=0",
     description: "Sun, sand and beaches",
     longDescription:
@@ -71,8 +71,7 @@ const destinations = [
   },
   {
     name: "Rajasthan",
-    image:
-      "https://www.tusktravel.com/images/kerala/kerala-tt-07.jpg",
+    image: "https://www.tusktravel.com/images/kerala/kerala-tt-07.jpg",
     description: "Land of kings and palaces",
     longDescription:
       "Step back in time with majestic forts, ornate palaces, and the vibrant culture of royal India.",
@@ -105,20 +104,20 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
   const carouselRef = useRef(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(autoScroll);
   const autoScrollRef = useRef(null);
-  
+
   // Create a function for handling the automatic scrolling
   const startAutoScroll = () => {
     if (autoScrollRef.current) {
       clearInterval(autoScrollRef.current);
     }
-    
+
     autoScrollRef.current = setInterval(() => {
-      setCurrentIndex((prevIndex) => 
+      setCurrentIndex((prevIndex) =>
         prevIndex === destinations.length - 1 ? 0 : prevIndex + 1
       );
     }, scrollInterval);
   };
-  
+
   // Start/stop auto scrolling when isAutoScrolling changes
   useEffect(() => {
     if (isAutoScrolling) {
@@ -126,7 +125,7 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
     } else if (autoScrollRef.current) {
       clearInterval(autoScrollRef.current);
     }
-    
+
     // Cleanup on component unmount
     return () => {
       if (autoScrollRef.current) {
@@ -134,14 +133,14 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
       }
     };
   }, [isAutoScrolling, scrollInterval]);
-  
+
   // Pause auto-scrolling on hover
   const handleMouseEnter = () => {
     if (isAutoScrolling && autoScrollRef.current) {
       clearInterval(autoScrollRef.current);
     }
   };
-  
+
   const handleMouseLeave = () => {
     if (isAutoScrolling) {
       startAutoScroll();
@@ -163,25 +162,27 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
       navigate(destinationRedirects[dest.name]);
     } else {
       // Default to listings page
-      navigate('/listings');
+      navigate("/listings");
     }
   };
 
   // Carousel navigation functions
   const nextSlide = () => {
-    setCurrentIndex((prevIndex) => 
+    setCurrentIndex((prevIndex) =>
       prevIndex === destinations.length - 1 ? 0 : prevIndex + 1
     );
   };
 
   const prevSlide = () => {
-    setCurrentIndex((prevIndex) => 
+    setCurrentIndex((prevIndex) =>
       prevIndex === 0 ? destinations.length - 1 : prevIndex - 1
     );
   };
 
   // State to track screen width
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1200
+  );
 
   // Update window width on resize
   useEffect(() => {
@@ -189,26 +190,26 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
       setWindowWidth(window.innerWidth);
     };
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Calculate visible cards based on viewport width
   const getVisibleCards = () => {
     const cards = [];
     const totalDestinations = destinations.length;
-    
+
     if (totalDestinations === 0) return cards;
-    
+
     // Determine how many cards to show based on screen width
     const cardsToShow = windowWidth < 640 ? 1 : windowWidth < 1024 ? 2 : 3;
-    
+
     // Create an array of indices that represent cards to show
     for (let i = 0; i < Math.min(cardsToShow, totalDestinations); i++) {
       const index = (currentIndex + i) % totalDestinations;
       cards.push(index);
     }
-    
+
     return cards;
   };
 
@@ -269,7 +270,8 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
             }}
           >
             <div className="inline-flex items-center justify-center bg-blue-100 text-blue-600 px-3 py-1 md:px-4 md:py-1.5 rounded-full text-xs md:text-sm font-medium mb-3 md:mb-4 shadow-sm">
-              <CompassOutlined className="mr-1 md:mr-2" /> Discover Amazing Places
+              <CompassOutlined className="mr-1 md:mr-2" /> Discover Amazing
+              Places
             </div>
           </motion.div>
 
@@ -302,16 +304,17 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
         </motion.div>
 
         {/* Carousel Container */}
-        <div className="relative" 
+        <div
+          className="relative"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
           {/* Carousel Navigation Buttons */}
           <div className="absolute top-1/2 -left-2 sm:-left-4 md:-left-8 z-10 transform -translate-y-1/2">
-            <Button 
-              type="primary" 
-              shape="circle" 
-              icon={<LeftOutlined />} 
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<LeftOutlined />}
               onClick={prevSlide}
               className="shadow-lg bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
               size={windowWidth < 640 ? "middle" : "large"}
@@ -319,10 +322,10 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
           </div>
 
           <div className="absolute top-1/2 -right-2 sm:-right-4 md:-right-8 z-10 transform -translate-y-1/2">
-            <Button 
-              type="primary" 
-              shape="circle" 
-              icon={<RightOutlined />} 
+            <Button
+              type="primary"
+              shape="circle"
+              icon={<RightOutlined />}
               onClick={nextSlide}
               className="shadow-lg bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
               size={windowWidth < 640 ? "middle" : "large"}
@@ -332,7 +335,7 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
           {/* Auto Scroll Toggle */}
           <div className="absolute top-0 right-0 z-10 mb-4 flex items-center bg-white/80 px-2 py-1 md:px-3 md:py-1 rounded-full shadow-sm">
             <Text className="text-xs mr-1 hidden sm:inline">Auto Scroll</Text>
-            <Switch 
+            <Switch
               size="small"
               checked={isAutoScrolling}
               onChange={setIsAutoScrolling}
@@ -342,12 +345,9 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
           </div>
 
           {/* Carousel Content */}
-          <motion.div 
-            ref={carouselRef} 
-            className="overflow-hidden"
-          >
+          <motion.div ref={carouselRef} className="overflow-hidden">
             <AnimatePresence mode="wait" initial={false}>
-              <motion.div 
+              <motion.div
                 key={currentIndex}
                 className="flex justify-center gap-2 sm:gap-4 lg:gap-6"
                 initial={{ opacity: 0, x: 100 }}
@@ -361,20 +361,29 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                     <motion.div
                       key={destIndex}
                       className={`cursor-pointer group ${
-                        windowWidth < 640 ? 'w-full' : 
-                        windowWidth < 1024 ? 'w-[48%]' : 
-                        'w-[31%]'
+                        windowWidth < 640
+                          ? "w-full"
+                          : windowWidth < 1024
+                          ? "w-[48%]"
+                          : "w-[31%]"
                       }`}
                       onClick={() => handleCardClick(dest)}
                       onMouseEnter={() => setHoveredCard(destIndex)}
                       onMouseLeave={() => setHoveredCard(null)}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3, delay: 0.1 * (destIndex % visibleCards.length) }}
+                      transition={{
+                        duration: 0.3,
+                        delay: 0.1 * (destIndex % visibleCards.length),
+                      }}
                     >
                       <motion.div
                         whileHover={{ y: -8 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 300,
+                          damping: 15,
+                        }}
                       >
                         <Badge.Ribbon
                           text={
@@ -387,7 +396,9 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                           color={dest.featured ? "blue" : "orange"}
                           style={{
                             display:
-                              !dest.featured && !dest.trending ? "none" : "block",
+                              !dest.featured && !dest.trending
+                                ? "none"
+                                : "block",
                           }}
                         >
                           <Card
@@ -400,7 +411,8 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                   onError={(e) => {
                                     e.target.onerror = null;
-                                    e.target.src = "https://via.placeholder.com/800x600?text=Image+Not+Available";
+                                    e.target.src =
+                                      "https://via.placeholder.com/800x600?text=Image+Not+Available";
                                   }}
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-70 group-hover:opacity-80 transition-opacity duration-300"></div>
@@ -439,7 +451,9 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                                 </button>
                               </div>
                             }
-                            bodyStyle={{ padding: windowWidth < 640 ? "12px" : "16px" }}
+                            bodyStyle={{
+                              padding: windowWidth < 640 ? "12px" : "16px",
+                            }}
                           >
                             <div className="px-1">
                               <Paragraph className="text-gray-700 text-sm md:text-base font-medium mb-1 md:mb-2 line-clamp-2">
@@ -447,13 +461,15 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
                               </Paragraph>
 
                               <div className="flex flex-wrap gap-1 mt-2 md:mt-3">
-                                {dest.tags?.slice(0, windowWidth < 640 ? 2 : 3).map((tag, i) => (
-                                  <Tooltip title={`Search ${tag}`} key={i}>
-                                    <span className="text-xs bg-blue-50 text-blue-600 rounded-full px-1.5 py-0.5 md:px-2 md:py-1 inline-block">
-                                      {tag}
-                                    </span>
-                                  </Tooltip>
-                                ))}
+                                {dest.tags
+                                  ?.slice(0, windowWidth < 640 ? 2 : 3)
+                                  .map((tag, i) => (
+                                    <Tooltip title={`Search ${tag}`} key={i}>
+                                      <span className="text-xs bg-blue-50 text-blue-600 rounded-full px-1.5 py-0.5 md:px-2 md:py-1 inline-block">
+                                        {tag}
+                                      </span>
+                                    </Tooltip>
+                                  ))}
                               </div>
                             </div>
                           </Card>
@@ -512,11 +528,11 @@ const Destinations = ({ autoScroll = true, scrollInterval = 5000 }) => {
           transition={{ delay: 0.6, duration: 0.6 }}
           className="text-center mt-8 md:mt-12"
         >
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             size={windowWidth < 640 ? "middle" : "large"}
             className="bg-blue-600 z-0 hover:bg-blue-700 px-4 md:px-8"
-            onClick={() => navigate('/listings')}
+            onClick={() => navigate("/listings")}
           >
             View All Destinations
           </Button>

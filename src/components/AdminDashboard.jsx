@@ -11,7 +11,7 @@ import { useMediaQuery } from 'react-responsive';
 
 const { Option } = Select;
 const { Text } = Typography;
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.pathsuchi.com/api';
 
 const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
