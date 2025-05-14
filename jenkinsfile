@@ -2,8 +2,8 @@ pipeline {
   agent any
 
   options {
-    timeout(time: 25, unit: 'MINUTES')
-    preserveStashes(buildCount: 5)
+    timeout(time: 30, unit: 'MINUTES')  // Increased timeout
+    preserveStashes(buildCount: 3)
     skipDefaultCheckout()
   }
 
@@ -15,16 +15,10 @@ pipeline {
       }
     }
 
-    stage('Build Frontend - Preparation') {
+    stage('Build Frontend') {
       steps {
         sh '''
-          # Create a simpler initial build
-          docker run --rm -v "$(pwd):/app" -w "/app" node:20-slim npm install --legacy-peer-deps
-          
-          # Edit package.json to use development mode (uses less memory)
-          sed -i 's/"build": "vite build"/"build": "vite build --mode development"/' package.json
-          
-          # Create production Vite config file
+          # Create optimized Vite config for low-memory builds
           cat > vite.config.production.js << 'EOF'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -43,7 +37,6 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             if (id.includes('react-dom')) return 'react-dom';
             if (id.includes('react')) return 'react-core';
-            if (id.includes('@ant-design')) return 'antd';
             if (id.includes('framer-motion')) return 'framer-motion';
             return 'vendor';
           }
@@ -53,39 +46,81 @@ export default defineConfig({
   }
 })
 EOF
-        '''
-      }
-    }
 
-    stage('Build Frontend - Production') {
-      steps {
-        sh '''
-          # Build with reduced features
-          docker run --rm \
-            -v "$(pwd):/app" \
-            -w "/app" \
-            --memory=16g \
-            --memory-swap=20g \
-            node:20-slim \
-            sh -c "export NODE_OPTIONS='--max-old-space-size=12288 --max-semi-space-size=64' && npm run build -- --config vite.config.production.js"
+          # Create .env file for build if it doesn't exist
+          if [ -f env-fe ]; then
+            echo "Using existing env-fe file"
+            cp env-fe .env
+          else
+            echo "Creating default .env file"
+            cat > .env << 'EOF'
+VITE_API_URL=https://api.pathsuchi.com
+VITE_APP_ENV=production
+VITE_APP_TITLE=Pathsuchi
+EOF
+          fi
+
+          # Build frontend using Dockerfile directly with env variables
+          # This avoids memory issues in Jenkins
+          docker build \
+            --no-cache \
+            -t frontend-builder \
+            --build-arg VITE_API_URL=$(grep VITE_API_URL .env | cut -d '=' -f2) \
+            --build-arg VITE_APP_ENV=$(grep VITE_APP_ENV .env | cut -d '=' -f2) \
+            --build-arg VITE_APP_TITLE=$(grep VITE_APP_TITLE .env | cut -d '=' -f2) \
+            -f- . <<'DOCKERFILE'
+FROM node:20-slim
+WORKDIR /app
+
+# Accept build arguments for environment variables
+ARG VITE_API_URL
+ARG VITE_APP_ENV
+ARG VITE_APP_TITLE
+
+# Set environment variables
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_APP_ENV=$VITE_APP_ENV
+ENV VITE_APP_TITLE=$VITE_APP_TITLE
+
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+COPY . .
+COPY vite.config.production.js .
+RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build -- --config vite.config.production.js
+DOCKERFILE
+
+          # Extract the built files from the container
+          rm -rf dist
+          docker create --name frontend-build-container frontend-builder
+          docker cp frontend-build-container:/app/dist ./dist
+          docker rm frontend-build-container
         '''
         stash name: 'frontend-dist', includes: 'dist/**'
       }
     }
 
-    stage('Build Static Image') {
+    stage('Build & Deploy Image') {
       steps {
         unstash 'frontend-dist'
-        sh 'docker build -t home-frontend .'
-      }
-    }
-
-    stage('Deploy') {
-      steps {
         sh '''
+          # Remove any existing container
           docker stop home-frontend-container || true
           docker rm home-frontend-container || true
+          
+          # Build the nginx image
+          docker build -t home-frontend .
+          
+          # Run the new container
           docker run -d --name home-frontend-container -p 5173:80 home-frontend
+          
+          # Verify deployment
+          sleep 5
+          if docker ps | grep -q home-frontend-container; then
+            echo "Container deployed successfully"
+          else
+            echo "Container failed to start"
+            exit 1
+          fi
         '''
       }
     }
@@ -96,7 +131,20 @@ EOF
       echo '✅ Frontend built & deployed successfully!'
     }
     failure {
+      sh '''
+        echo "--- Build Failure Diagnostics ---"
+        docker ps -a
+        docker images
+        df -h
+        free -m
+      '''
       echo '❌ Frontend build or deploy failed—check logs above.'
+    }
+    always {
+      sh '''
+        # Clean up builder image to save space
+        docker rmi frontend-builder || true
+      '''
     }
   }
 }
