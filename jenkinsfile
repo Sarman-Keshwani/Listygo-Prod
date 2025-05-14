@@ -1,126 +1,41 @@
 pipeline {
   agent any
-
   options {
-    timeout(time: 30, unit: 'MINUTES')  // Increased timeout
-    preserveStashes(buildCount: 3)
     skipDefaultCheckout()
+    // Keep last 5 builds’ workspaces around
+    preserveStashes(buildCount: 5)
+    timeout(time: 20, unit: 'MINUTES')
   }
 
   stages {
     stage('Clean & Checkout') {
       steps {
         cleanWs()
-        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+        checkout scm
       }
     }
 
-    stage('Build Frontend') {
+    stage('Install & Build') {
+      steps {
+        sh 'npm ci'
+        sh 'npm run build'
+      }
+    }
+
+    stage('Docker Build & Deploy') {
       steps {
         sh '''
-          # Create optimized Vite config for low-memory builds
-          cat > vite.config.production.js << 'EOF'
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+          # build Docker image
+          docker build -t vite-app .
 
-export default defineConfig({
-  plugins: [react()],
-  build: {
-    target: 'esnext',
-    chunkSizeWarningLimit: 3000,
-    sourcemap: false,
-    minify: 'esbuild',
-    assetsInlineLimit: 0,
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react-dom')) return 'react-dom';
-            if (id.includes('react')) return 'react-core';
-            if (id.includes('framer-motion')) return 'framer-motion';
-            return 'vendor';
-          }
-        }
-      }
-    }
-  }
-})
-EOF
+          # tear down any existing container
+          docker rm -f vite-app || true
 
-          # Create .env file for build if it doesn't exist
-          if [ -f env-fe ]; then
-            echo "Using existing env-fe file"
-            cp env-fe .env
-          else
-            echo "Creating default .env file"
-            cat > .env << 'EOF'
-VITE_API_URL=https://api.pathsuchi.com
-VITE_APP_ENV=production
-VITE_APP_TITLE=Pathsuchi
-EOF
-          fi
-
-          # Build frontend using Dockerfile directly with env variables
-          # This avoids memory issues in Jenkins
-          docker build \
-            --no-cache \
-            -t frontend-builder \
-            --build-arg VITE_API_URL=$(grep VITE_API_URL .env | cut -d '=' -f2) \
-            --build-arg VITE_APP_ENV=$(grep VITE_APP_ENV .env | cut -d '=' -f2) \
-            --build-arg VITE_APP_TITLE=$(grep VITE_APP_TITLE .env | cut -d '=' -f2) \
-            -f- . <<'DOCKERFILE'
-FROM node:20-slim
-WORKDIR /app
-
-# Accept build arguments for environment variables
-ARG VITE_API_URL
-ARG VITE_APP_ENV
-ARG VITE_APP_TITLE
-
-# Set environment variables
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_APP_ENV=$VITE_APP_ENV
-ENV VITE_APP_TITLE=$VITE_APP_TITLE
-
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-COPY . .
-COPY vite.config.production.js .
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build -- --config vite.config.production.js
-DOCKERFILE
-
-          # Extract the built files from the container
-          rm -rf dist
-          docker create --name frontend-build-container frontend-builder
-          docker cp frontend-build-container:/app/dist ./dist
-          docker rm frontend-build-container
-        '''
-        stash name: 'frontend-dist', includes: 'dist/**'
-      }
-    }
-
-    stage('Build & Deploy Image') {
-      steps {
-        unstash 'frontend-dist'
-        sh '''
-          # Remove any existing container
-          docker stop home-frontend-container || true
-          docker rm home-frontend-container || true
-          
-          # Build the nginx image
-          docker build -t home-frontend .
-          
-          # Run the new container
-          docker run -d --name home-frontend-container -p 5173:80 home-frontend
-          
-          # Verify deployment
-          sleep 5
-          if docker ps | grep -q home-frontend-container; then
-            echo "Container deployed successfully"
-          else
-            echo "Container failed to start"
-            exit 1
-          fi
+          # run new container, serving the built files
+          docker run -d \
+            --name vite-app \
+            -p 5173:80 \
+            vite-app
         '''
       }
     }
@@ -128,23 +43,14 @@ DOCKERFILE
 
   post {
     success {
-      echo '✅ Frontend built & deployed successfully!'
+      echo "✅ Vite app built & deployed successfully!"
     }
     failure {
-      sh '''
-        echo "--- Build Failure Diagnostics ---"
-        docker ps -a
-        docker images
-        df -h
-        free -m
-      '''
-      echo '❌ Frontend build or deploy failed—check logs above.'
+      echo "❌ Something went wrong — check the logs above."
     }
     always {
-      sh '''
-        # Clean up builder image to save space
-        docker rmi frontend-builder || true
-      '''
+      // clean up dangling images
+      sh 'docker image prune -f'
     }
   }
 }
