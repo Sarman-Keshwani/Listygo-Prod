@@ -1,9 +1,13 @@
 pipeline {
   agent any
+
+  // force npm to use a cache folder we own
+  environment {
+    NPM_CONFIG_CACHE = "${WORKSPACE}/.npm-cache"
+  }
+
   options {
     skipDefaultCheckout()
-    // Keep last 5 builds’ workspaces around
-    preserveStashes(buildCount: 5)
     timeout(time: 20, unit: 'MINUTES')
   }
 
@@ -17,25 +21,28 @@ pipeline {
 
     stage('Install & Build') {
       steps {
-        sh 'npm ci'
-        sh 'npm run build'
+        sh '''
+          # point npm cache inside the workspace to avoid root-owned files
+          npm config set cache "$NPM_CONFIG_CACHE" --global
+
+          # install and build
+          npm ci
+          npm run build
+        '''
       }
     }
 
     stage('Docker Build & Deploy') {
       steps {
         sh '''
-          # build Docker image
+          # Build an image called vite-app
           docker build -t vite-app .
 
-          # tear down any existing container
+          # Replace any old container
           docker rm -f vite-app || true
 
-          # run new container, serving the built files
-          docker run -d \
-            --name vite-app \
-            -p 5173:80 \
-            vite-app
+          # Run it, mapping container’s port 80 → host 5173
+          docker run -d --name vite-app -p 5173:80 vite-app
         '''
       }
     }
@@ -46,10 +53,10 @@ pipeline {
       echo "✅ Vite app built & deployed successfully!"
     }
     failure {
-      echo "❌ Something went wrong — check the logs above."
+      echo "❌ Build or deploy failed—see errors above."
     }
     always {
-      // clean up dangling images
+      // clean up dangling images to free space
       sh 'docker image prune -f'
     }
   }
