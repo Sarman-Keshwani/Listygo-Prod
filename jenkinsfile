@@ -18,7 +18,7 @@ pipeline {
     stage('Build Frontend') {
       steps {
         sh '''
-          # Create optimized Vite config for low-memory builds
+          # Create optimized Vite config for low-memory builds with aggressive chunking
           cat > vite.config.production.js << 'EOF'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -31,15 +31,18 @@ export default defineConfig({
     sourcemap: false,
     minify: 'esbuild',
     assetsInlineLimit: 0,
+    // Incremental builds can help reduce memory requirements
+    emptyOutDir: false,
+    // More aggressive code splitting to reduce memory pressure
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react-dom')) return 'react-dom';
-            if (id.includes('react')) return 'react-core';
-            if (id.includes('framer-motion')) return 'framer-motion';
-            return 'vendor';
-          }
+        manualChunks: {
+          // Split React into its own chunk
+          'react-vendor': ['react', 'react-dom'],
+          // Split other large packages into separate chunks
+          'vendor-ui': ['framer-motion', '@ant-design/icons', '@ant-design/components'],
+          // Other common libraries
+          'vendor-utils': ['axios', 'lodash', 'date-fns'],
         }
       }
     }
@@ -60,11 +63,13 @@ VITE_APP_TITLE=Pathsuchi
 EOF
           fi
 
-          # Build frontend using Dockerfile directly with env variables
-          # This avoids memory issues in Jenkins
+          # Build frontend using Docker with MUCH more memory allocated
           docker build \
             --no-cache \
             -t frontend-builder \
+            --memory=24g \
+            --memory-swap=28g \
+            --build-arg NODE_OPTIONS="--max-old-space-size=16384" \
             --build-arg VITE_API_URL=$(grep VITE_API_URL .env | cut -d '=' -f2) \
             --build-arg VITE_APP_ENV=$(grep VITE_APP_ENV .env | cut -d '=' -f2) \
             --build-arg VITE_APP_TITLE=$(grep VITE_APP_TITLE .env | cut -d '=' -f2) \
@@ -76,17 +81,23 @@ WORKDIR /app
 ARG VITE_API_URL
 ARG VITE_APP_ENV
 ARG VITE_APP_TITLE
+ARG NODE_OPTIONS
 
 # Set environment variables
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_APP_ENV=$VITE_APP_ENV
 ENV VITE_APP_TITLE=$VITE_APP_TITLE
+ENV NODE_OPTIONS=$NODE_OPTIONS
 
 COPY package*.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
 COPY vite.config.production.js .
-RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build -- --config vite.config.production.js
+
+# Build with development mode first (uses less memory)
+RUN npm run build -- --mode development --config vite.config.production.js || \
+    # If development build fails, try build with more memory but fewer features
+    NODE_OPTIONS="--max-old-space-size=16384 --max-semi-space-size=128" npm run build -- --config vite.config.production.js
 DOCKERFILE
 
           # Extract the built files from the container
