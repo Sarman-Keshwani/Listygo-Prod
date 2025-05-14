@@ -63,13 +63,13 @@ VITE_APP_TITLE=Pathsuchi
 EOF
           fi
 
-          # Build frontend using Docker with MUCH more memory allocated
+          # Build frontend using Docker with appropriate memory for your server
           docker build \
             --no-cache \
             -t frontend-builder \
-            --memory=24g \
-            --memory-swap=28g \
-            --build-arg NODE_OPTIONS="--max-old-space-size=16384" \
+            --memory=3g \
+            --memory-swap=4g \
+            --build-arg NODE_OPTIONS="--max-old-space-size=2048" \
             --build-arg VITE_API_URL=$(grep VITE_API_URL .env | cut -d '=' -f2) \
             --build-arg VITE_APP_ENV=$(grep VITE_APP_ENV .env | cut -d '=' -f2) \
             --build-arg VITE_APP_TITLE=$(grep VITE_APP_TITLE .env | cut -d '=' -f2) \
@@ -96,8 +96,7 @@ COPY vite.config.production.js .
 
 # Build with development mode first (uses less memory)
 RUN npm run build -- --mode development --config vite.config.production.js || \
-    # If development build fails, try build with more memory but fewer features
-    NODE_OPTIONS="--max-old-space-size=16384 --max-semi-space-size=128" npm run build -- --config vite.config.production.js
+    export NODE_OPTIONS="--max-old-space-size=2048 --max-semi-space-size=64" && npm run build -- --config vite.config.production.js
 DOCKERFILE
 
           # Extract the built files from the container
