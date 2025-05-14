@@ -1,55 +1,51 @@
 pipeline {
-  agent any
-
+  agent {
+    docker {
+      image 'node:20-slim'
+      args  '-u root'            // run as root so writing cache is fine
+    }
+  }
+  options {
+    timestamps()                 // show per-line timestamps
+    timeout(time: 25, unit: 'MINUTES')
+    skipDefaultCheckout()
+  }
   environment {
-    // npm will read this from local .npmrc
     NPM_CONFIG_CACHE = "${WORKSPACE}/.npm-cache"
   }
 
-  options {
-    skipDefaultCheckout()
-    timeout(time: 20, unit: 'MINUTES')
-  }
-
   stages {
-    stage('Clean & Checkout') {
+    stage('Checkout') {
       steps {
         cleanWs()
         checkout scm
       }
     }
 
-    stage('Setup NPM Cache') {
+    stage('Setup Cache & Install') {
       steps {
-        // Create a project-local .npmrc so npm writes cache here
         sh '''
-          mkdir -p "${NPM_CONFIG_CACHE}"
+          # write local .npmrc so npm never touches /etc
           echo "cache=${NPM_CONFIG_CACHE}" > .npmrc
-        '''
-      }
-    }
 
-    stage('Install & Build') {
-      steps {
-        sh '''
-          # install dependencies using the workspace cache
+          # install into workspace cache
           npm ci
-          # build production bundle
-          npm run build
         '''
       }
     }
 
-    stage('Docker Build & Deploy') {
+    stage('Build') {
+      steps {
+        // wrap in `time` so you see exactly how long it takes
+        sh 'time npm run build'
+      }
+    }
+
+    stage('Dockerize & Deploy') {
       steps {
         sh '''
-          # build Docker image
           docker build -t vite-app .
-
-          # remove old container if running
           docker rm -f vite-app || true
-
-          # launch updated container
           docker run -d --name vite-app -p 5173:80 vite-app
         '''
       }
@@ -57,15 +53,8 @@ pipeline {
   }
 
   post {
-    success {
-      echo "✅ Vite app built & deployed successfully!"
-    }
-    failure {
-      echo "❌ Build or deploy failed—see logs above."
-    }
-    always {
-      // cleanup dangling Docker images
-      sh 'docker image prune -f'
-    }
+    always { sh 'docker image prune -f' }
+    success { echo "✅ Done in $BUILD_DURATION" }
+    failure { echo "❌ Failed—see logs above." }
   }
 }
