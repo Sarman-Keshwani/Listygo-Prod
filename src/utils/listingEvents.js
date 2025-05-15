@@ -29,6 +29,7 @@ export const dispatchListingDeletedEvent = (listingId) => {
  * @param {Object} listing - The updated listing data
  */
 export const dispatchListingUpdatedEvent = (listing) => {
+  console.log('Dispatching listing updated event');
   window.dispatchEvent(new CustomEvent('listingUpdated', { 
     detail: { listing } 
   }));

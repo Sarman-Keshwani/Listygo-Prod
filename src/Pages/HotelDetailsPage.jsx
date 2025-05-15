@@ -47,7 +47,7 @@ import {
   MdPool,
   MdFitnessCenter,
 } from "react-icons/md";
-import { FiMaximize2, FiClock } from "react-icons/fi";
+import { FiMaximize2, FiClock, FiUser } from "react-icons/fi";
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -969,49 +969,153 @@ const HotelDetailsPage = () => {
                 bordered={false}
                 className="shadow-md rounded-lg"
                 title={
-                  <Title level={4} className="my-0">
+                  <Title level={4} className="my-0 flex items-center">
+                    <MailOutlined className="mr-2 text-blue-500" />
                     Contact Information
                   </Title>
                 }
               >
                 {/* Public Contact Information */}
-                <div className="space-y-3">
+                <div className="space-y-4 p-2">
                   {listing.contactPhone && (
-                    <div className="flex items-center">
-                      <PhoneOutlined className="text-blue-500 mr-3" />
-                      <Text copyable>{listing.contactPhone}</Text>
+                    <div className="flex items-center bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors">
+                      <div className="bg-white p-2 rounded-full mr-3 shadow-sm">
+                        <PhoneOutlined className="text-blue-600 text-lg" />
+                      </div>
+                      <div>
+                        <Text type="secondary" className="block text-xs">
+                          Phone
+                        </Text>
+                        <Text copyable className="font-medium">
+                          {listing.contactPhone}
+                        </Text>
+                      </div>
                     </div>
                   )}
 
                   {listing.contactEmail && (
-                    <div className="flex items-center">
-                      <MailOutlined className="text-blue-500 mr-3" />
-                      <Text copyable>{listing.contactEmail}</Text>
+                    <div className="flex items-center bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors">
+                      <div className="bg-white p-2 rounded-full mr-3 shadow-sm">
+                        <MailOutlined className="text-blue-600 text-lg" />
+                      </div>
+                      <div>
+                        <Text type="secondary" className="block text-xs">
+                          Email
+                        </Text>
+                        <Text copyable className="font-medium">
+                          {listing.contactEmail}
+                        </Text>
+                      </div>
                     </div>
                   )}
 
                   {listing.website && (
-                    <div className="flex items-center">
-                      <GlobalOutlined className="text-blue-500 mr-3" />
-                      <a
-                        href={
-                          listing.website.startsWith("http")
-                            ? listing.website
-                            : `https://${listing.website}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
-                      >
-                        {listing.website.replace(/^https?:\/\//i, "")}
-                      </a>
+                    <div className="flex items-center bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors">
+                      <div className="bg-white p-2 rounded-full mr-3 shadow-sm">
+                        <GlobalOutlined className="text-blue-600 text-lg" />
+                      </div>
+                      <div>
+                        <Text type="secondary" className="block text-xs">
+                          Website
+                        </Text>
+                        <a
+                          href={
+                            listing.website.startsWith("http")
+                              ? listing.website
+                              : `https://${listing.website}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline font-medium"
+                        >
+                          {listing.website.replace(/^https?:\/\//i, "")}
+                        </a>
+                      </div>
                     </div>
                   )}
                 </div>
 
+                {/* Owner Information Section - Enhanced styling */}
+                {listing.owner && (
+                  <>
+                    <Divider orientation="left">
+                      <span className="flex items-center">
+                        <FiUser className="mr-2 text-blue-500" /> Owner/Host
+                        Information
+                      </span>
+                    </Divider>
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl shadow-sm border border-blue-100">
+                      <div className="flex items-center space-x-4">
+                        <div className="relative">
+                          <Avatar
+                            size={70}
+                            icon={<FiUser />}
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 shadow-md"
+                          />
+                          {(typeof listing.owner === "object" &&
+                            listing.owner.isFeatured) ||
+                          (typeof listing.owner === "string" &&
+                            JSON.parse(listing.owner).isFeatured) ? (
+                            <div className="absolute -top-2 -right-2">
+                              <Badge.Ribbon text="Featured" color="gold" />
+                            </div>
+                          ) : null}
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-xl font-semibold text-gray-800 mb-1">
+                            {typeof listing.owner === "object"
+                              ? listing.owner.name
+                              : typeof listing.owner === "string"
+                              ? JSON.parse(listing.owner).name
+                              : "Owner"}
+                          </h3>
+
+                          <div className="space-y-2 mt-2">
+                            {(typeof listing.owner === "object" &&
+                              listing.owner.email) ||
+                            (typeof listing.owner === "string" &&
+                              JSON.parse(listing.owner).email) ? (
+                              <div className="flex items-center text-gray-600">
+                                <div className="bg-white p-1 rounded-full shadow-sm mr-2">
+                                  <MailOutlined className="text-blue-500" />
+                                </div>
+                                <Text copyable className="text-gray-800">
+                                  {typeof listing.owner === "object"
+                                    ? listing.owner.email
+                                    : typeof listing.owner === "string"
+                                    ? JSON.parse(listing.owner).email
+                                    : ""}
+                                </Text>
+                              </div>
+                            ) : null}
+
+                            {(typeof listing.owner === "object" &&
+                              listing.owner.phone) ||
+                            (typeof listing.owner === "string" &&
+                              JSON.parse(listing.owner).phone) ? (
+                              <div className="flex items-center text-gray-600">
+                                <div className="bg-white p-1 rounded-full shadow-sm mr-2">
+                                  <PhoneOutlined className="text-blue-500" />
+                                </div>
+                                <Text copyable className="text-gray-800">
+                                  {typeof listing.owner === "object"
+                                    ? listing.owner.phone
+                                    : typeof listing.owner === "string"
+                                    ? JSON.parse(listing.owner).phone
+                                    : ""}
+                                </Text>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <Divider />
 
-                {/* Contact Form */}
+                {/* Contact Form - Enhanced styling */}
                 <Form
                   id="contact-form"
                   form={form}
@@ -1020,7 +1124,12 @@ const HotelDetailsPage = () => {
                 >
                   <Form.Item
                     name="message"
-                    label="Send a message"
+                    label={
+                      <span className="flex items-center">
+                        <MailOutlined className="mr-2 text-blue-500" /> Send
+                        Message
+                      </span>
+                    }
                     rules={[
                       { required: true, message: "Please enter your message!" },
                     ]}
@@ -1028,6 +1137,7 @@ const HotelDetailsPage = () => {
                     <Input.TextArea
                       rows={4}
                       placeholder="I'm interested in this listing..."
+                      className="rounded-lg"
                     />
                   </Form.Item>
 
@@ -1035,7 +1145,7 @@ const HotelDetailsPage = () => {
                     <Button
                       type="primary"
                       block
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 h-10 rounded-lg shadow-md"
                       onClick={() => {
                         // Get form message value
                         const message = form.getFieldValue("message");
