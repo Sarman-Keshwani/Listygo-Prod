@@ -2,135 +2,71 @@ pipeline {
   agent any
 
   options {
-    timeout(time: 30, unit: 'MINUTES')  // Increased timeout
-    preserveStashes(buildCount: 3)
+    // we’ll do our own checkout, so skip the default
     skipDefaultCheckout()
   }
 
   stages {
     stage('Clean & Checkout') {
       steps {
-        cleanWs()
-        git url: 'https://github.com/Sarman-Keshwani/Listygo-Prod.git', branch: 'main'
+        deleteDir()
+        git branch: 'adi-be',
+            url:   'https://github.com/Aditya-Garg10/Listygo.git'
       }
     }
 
-    stage('Build Frontend') {
+    stage('Inject Firebase Creds') {
       steps {
-        sh '''
-          # Create optimized Vite config for low-memory builds with aggressive chunking
-          cat > vite.config.production.js << 'EOF'
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-export default defineConfig({
-  plugins: [react()],
-  build: {
-    target: 'esnext',
-    chunkSizeWarningLimit: 3000,
-    sourcemap: false,
-    minify: 'esbuild',
-    assetsInlineLimit: 0,
-    // Incremental builds can help reduce memory requirements
-    emptyOutDir: false,
-    // More aggressive code splitting to reduce memory pressure
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          // Split React into its own chunk
-          'react-vendor': ['react', 'react-dom'],
-          // Split other large packages into separate chunks
-          'vendor-ui': ['framer-motion', '@ant-design/icons', '@ant-design/components'],
-          // Other common libraries
-          'vendor-utils': ['axios', 'lodash', 'date-fns'],
+        configFileProvider([configFile(
+          fileId: 'firebaseCredentials',      // your managed-file ID
+          targetLocation: 'firebase-credentials.json'
+        )]) {
+          echo "✔️ Injected firebase-credentials.json"
         }
       }
     }
-  }
-})
-EOF
 
-          # Create .env file for build if it doesn't exist
-          if [ -f env-fe ]; then
-            echo "Using existing env-fe file"
-            cp env-fe .env
-          else
-            echo "Creating default .env file"
-            cat > .env << 'EOF'
-VITE_API_URL=https://api.pathsuchi.com
-VITE_APP_ENV=production
-VITE_APP_TITLE=Pathsuchi
-EOF
-          fi
-
-          # Build frontend using Docker with appropriate memory for your server
-          docker build \
-            --no-cache \
-            -t frontend-builder \
-            --memory=3g \
-            --memory-swap=4g \
-            --build-arg NODE_OPTIONS="--max-old-space-size=2048" \
-            --build-arg VITE_API_URL=$(grep VITE_API_URL .env | cut -d '=' -f2) \
-            --build-arg VITE_APP_ENV=$(grep VITE_APP_ENV .env | cut -d '=' -f2) \
-            --build-arg VITE_APP_TITLE=$(grep VITE_APP_TITLE .env | cut -d '=' -f2) \
-            -f- . <<'DOCKERFILE'
-FROM node:20-slim
-WORKDIR /app
-
-# Accept build arguments for environment variables
-ARG VITE_API_URL
-ARG VITE_APP_ENV
-ARG VITE_APP_TITLE
-ARG NODE_OPTIONS
-
-# Set environment variables
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_APP_ENV=$VITE_APP_ENV
-ENV VITE_APP_TITLE=$VITE_APP_TITLE
-ENV NODE_OPTIONS=$NODE_OPTIONS
-
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-COPY . .
-COPY vite.config.production.js .
-
-# Build with development mode first (uses less memory)
-RUN npm run build -- --mode development --config vite.config.production.js || \
-    export NODE_OPTIONS="--max-old-space-size=2048 --max-semi-space-size=64" && npm run build -- --config vite.config.production.js
-DOCKERFILE
-
-          # Extract the built files from the container
-          rm -rf dist
-          docker create --name frontend-build-container frontend-builder
-          docker cp frontend-build-container:/app/dist ./dist
-          docker rm frontend-build-container
-        '''
-        stash name: 'frontend-dist', includes: 'dist/**'
+    stage('Inject ENV file') {
+      steps {
+        configFileProvider([configFile(
+          fileId: 'listygo-env',              // your managed-file ID
+          targetLocation: 'Listygo ENV'
+        )]) {
+          echo "✔️ Injected .env file at workspace"
+        }
       }
     }
 
-    stage('Build & Deploy Image') {
+    stage('Verify Workspace') {
       steps {
-        unstash 'frontend-dist'
         sh '''
-          # Remove any existing container
-          docker stop home-frontend-container || true
-          docker rm home-frontend-container || true
-          
-          # Build the nginx image
-          docker build -t home-frontend .
-          
-          # Run the new container
-          docker run -d --name home-frontend-container -p 5173:80 home-frontend
-          
-          # Verify deployment
-          sleep 5
-          if docker ps | grep -q home-frontend-container; then
-            echo "Container deployed successfully"
-          else
-            echo "Container failed to start"
-            exit 1
-          fi
+          echo "── Workspace contents ──"
+          ls -al .
+          echo "──────────────────────"
+        '''
+      }
+    }
+
+    stage('Build & Deploy') {
+      steps {
+        sh '''
+          # 1) Stop & remove any containers binding port 8000
+          for c in $(docker ps --filter "publish=8000" --format "{{.ID}}"); do
+            docker stop $c || true
+            docker rm   $c || true
+          done
+
+          # 2) Remove any old home-backend-1 by name
+          docker rm -f home-backend-1 || true
+
+          # 3) Build fresh image
+          docker build --no-cache -t home-backend .
+
+          # 4) Run it
+          docker run -d \
+            --name home-backend-1 \
+            -p 8000:3000 \
+            home-backend
         '''
       }
     }
@@ -138,23 +74,10 @@ DOCKERFILE
 
   post {
     success {
-      echo '✅ Frontend built & deployed successfully!'
+      echo '✅ Deployment complete—your updated code is now live!'
     }
     failure {
-      sh '''
-        echo "--- Build Failure Diagnostics ---"
-        docker ps -a
-        docker images
-        df -h
-        free -m
-      '''
-      echo '❌ Frontend build or deploy failed—check logs above.'
-    }
-    always {
-      sh '''
-        # Clean up builder image to save space
-        docker rmi frontend-builder || true
-      '''
+      echo '❌ Deployment failed. Check the logs above.'
     }
   }
 }
