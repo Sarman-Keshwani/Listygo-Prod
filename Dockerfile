@@ -1,20 +1,46 @@
-# 1. Use a lightweight Node.js base
-FROM node:18-alpine
+# syntax = docker/dockerfile:1.4
+
+########################
+#  Builder Stage       #
+########################
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# 2. Install dependencies
-COPY package*.json ./
-RUN npm ci
+# 1) Allow a bigger V8 heap (4 GB)
+ARG NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS=${NODE_OPTIONS}
 
-# 3. Copy Firebase creds into the image
-COPY firebase-credentials.json ./
+# 2) Cache‐busting build version (optional)
+ARG VITE_BUILD_VERSION
+ENV VITE_BUILD_VERSION=${VITE_BUILD_VERSION}
 
-# 4. Copy application source
-COPY . .
+# 3) Increase npm network timeout if you hit fetch issues
+ARG VITE_NETWORK_TIMEOUT=60000
+ENV VITE_NETWORK_TIMEOUT=${VITE_NETWORK_TIMEOUT}
 
-# 5. Tell any client libraries where to find your credentials
-ENV GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-credentials.json
+# 4) Install all dependencies (including devDeps needed by Vite)
+COPY package.json package-lock.json ./
+RUN npm config set fetch-timeout $VITE_NETWORK_TIMEOUT \
+    && npm ci --prefer-offline
 
-# 6. Expose & run
-EXPOSE 8000
-CMD ["npm", "start"]
+# 5) Copy your source and run the Vite build
+COPY . ./
+RUN npm run build
+
+########################
+#  Production Stage    #
+########################
+FROM nginx:stable-alpine
+WORKDIR /usr/share/nginx/html
+
+# 6) Copy the static output
+COPY --from=builder /app/dist ./
+
+# 7) Custom nginx config (if you have one)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+# 8) Simple healthcheck
+HEALTHCHECK --interval=30s --timeout=3s \
+    CMD wget -q -O /dev/null http://localhost/ || exit 1
