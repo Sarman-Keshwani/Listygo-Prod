@@ -1,5 +1,5 @@
 import React from "react";
-import { Form, Input, Select, InputNumber, Rate, Switch } from "antd";
+import { Form, message, Input, Select, InputNumber, Rate, Switch } from "antd";
 import { FiHome, FiDollarSign, FiMapPin } from "react-icons/fi";
 import countries from "../../../components/countries.json";
 import states from "../../../components/states.json";
@@ -18,11 +18,12 @@ const BasicInfoTab = ({
   setFilteredStates,
   filteredCities,
   setFilteredCities,
+  form, // Add form to props
 }) => {
   const handleCountryChange = (countryId) => {
     setSelectedCountry(countryId);
     setSelectedState(null);
-    Form.setFieldsValue({ state: undefined, city: undefined });
+    form.setFieldsValue({ state: undefined, city: undefined }); // Use form instance
 
     const statesInCountry = states.filter(
       (state) => state.country_id === countryId
@@ -31,9 +32,23 @@ const BasicInfoTab = ({
     setFilteredCities([]);
   };
 
+  const validateRequiredFields = () => {
+    const fieldsToCheck = ["country", "state", "city"];
+    const values = form.getFieldsValue();
+    const missingFields = fieldsToCheck.filter((field) => !values[field]);
+
+    if (missingFields.length > 0) {
+      message.warning(
+        `Please complete required fields: ${missingFields.join(", ")}`
+      );
+      return false;
+    }
+
+    return true;
+  };
   const handleStateChange = (stateId) => {
     setSelectedState(stateId);
-    Form.setFieldsValue({ city: undefined });
+    form.setFieldsValue({ city: undefined }); // Use form instance
     const citiesInState = cities.filter((city) => city.state_id === stateId);
     setFilteredCities(citiesInState);
   };

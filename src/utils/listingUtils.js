@@ -5,7 +5,7 @@ export const sanitizeAmenityText = (amenity) => {
   let text = String(amenity);
 
   // Remove any square brackets, quotes, and other problematic characters
-  text = text.replace(/[\[\]\\/"']/g, "");
+  text = text.replace(/[[\]\\/"']/g, "");
 
   // Clean any leading/trailing whitespace
   text = text.trim();
@@ -90,29 +90,38 @@ export const parseAmenities = (amenitiesArray) => {
             }
           }
           // Clean up the amenity by removing brackets, slashes and quotes
-          return amenity.replace(/[\[\]\\/"']/g, "").trim();
+          return amenity.replace(/[[\]\\/"']/g, "").trim();
         } catch {
           // If parsing fails, just clean up the string
-          return amenity.replace(/[\[\]\\/"']/g, "").trim();
+          return amenity.replace(/[[\]\\/"']/g, "").trim();
         }
       }
       return String(amenity)
-        .replace(/[\[\]\\/"']/g, "")
+        .replace(/[[\]\\/"']/g, "")
         .trim();
     })
     .filter(Boolean);
 };
 
-const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png"];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
 export const validateImageFile = (file) => {
-  if (!ALLOWED_FILE_TYPES.includes(file.type) || file.size > MAX_FILE_SIZE) {
+  // Check file type
+  const ALLOWED_FILE_TYPES = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+  if (!ALLOWED_FILE_TYPES.includes(file.type)) {
     return {
       valid: false,
-      message: "Only JPG/PNG under 10MB allowed"
+      message: "Only JPG, PNG or WebP files are allowed"
     };
   }
+
+  // Check file size (5MB limit)
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+  if (file.size > MAX_FILE_SIZE) {
+    return {
+      valid: false,
+      message: `Image is too large (${(file.size / (1024 * 1024)).toFixed(2)}MB). Maximum size is 5MB.`
+    };
+  }
+
   return { valid: true };
 };
 

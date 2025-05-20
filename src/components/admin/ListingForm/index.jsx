@@ -22,7 +22,7 @@ const ListingForm = ({
 }) => {
   const [form] = Form.useForm();
   const [formLoading, setFormLoading] = useState(false);
-  const [images, setImages] = useState([""]);
+  const [formImages, setFormImages] = useState([""]);
   const [activeImagePreview, setActiveImagePreview] = useState(0);
   const [amenities, setAmenities] = useState([]);
   const [attributeString, setAttributeString] = useState("");
@@ -32,6 +32,7 @@ const ListingForm = ({
   const [filteredCities, setFilteredCities] = useState([]);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewUrls, setPreviewUrls] = useState([]);
+  const [activeTab, setActiveTab] = useState("basic"); // Add this line to track active tab
 
   // For business hours templates
   const [savedHoursTemplates, setSavedHoursTemplates] = useState(() => {
@@ -55,6 +56,21 @@ const ListingForm = ({
       };
     }
   });
+
+  const validateRequiredFields = () => {
+    const fieldsToCheck = ["country", "state", "city"];
+    const values = form.getFieldsValue();
+    const missingFields = fieldsToCheck.filter((field) => !values[field]);
+
+    if (missingFields.length > 0) {
+      message.warning(
+        `Please complete required fields: ${missingFields.join(", ")}`
+      );
+      return false;
+    }
+
+    return true;
+  };
 
   // Initialize form with listing data (when editing)
   useEffect(() => {
@@ -140,7 +156,7 @@ const ListingForm = ({
         const listingImages =
           listing.images && listing.images.length > 0 ? listing.images : [""];
 
-        setImages(listingImages);
+        setFormImages(listingImages);
         setActiveImagePreview(0);
 
         // Parse amenities
@@ -301,7 +317,7 @@ const ListingForm = ({
       }
 
       // Handle images
-      const filteredImages = images.filter((img) => img && img.trim());
+      const filteredImages = formImages.filter((img) => img && img.trim());
 
       const dataUrls = filteredImages.filter((i) => i.startsWith("data:"));
       const urls = filteredImages.filter((i) => !i.startsWith("data:"));
@@ -341,6 +357,47 @@ const ListingForm = ({
     }
   };
 
+  // Add this function to handle tab changes
+  const handleTabChange = (key) => {
+    console.log(`Trying to switch to tab: ${key} from ${activeTab}`);
+
+    // Only validate when switching from basic to another tab
+    if (activeTab === "basic" && key !== "basic") {
+      // Customize fields to check based on whether we're editing or creating
+      const basicFields = ["name", "category"];
+      const locationFields = editingListingId
+        ? []
+        : ["country", "state", "city"];
+      const fieldsToCheck = [...basicFields, ...locationFields];
+
+      // Get form values
+      const values = form.getFieldsValue();
+      console.log("Current form values:", values);
+
+      // Find missing required fields
+      const missingFields = fieldsToCheck.filter(
+        (field) => !values[field] || values[field] === ""
+      );
+
+      if (missingFields.length > 0) {
+        // Use message.warning as requested
+        message.warning(
+          `Please complete these required fields: ${missingFields.join(", ")}`
+        );
+
+        // Highlight the fields with errors
+        form.validateFields(missingFields).catch((info) => {
+          console.log("Validation failed:", info);
+        });
+
+        return; // Don't change tab
+      }
+    }
+
+    // Allow tab change if validation passes
+    setActiveTab(key);
+  };
+
   return (
     <Form
       form={form}
@@ -351,7 +408,7 @@ const ListingForm = ({
         isFeatured: false,
       }}
     >
-      <Tabs defaultActiveKey="basic">
+      <Tabs activeKey={activeTab} onChange={handleTabChange}>
         <TabPane tab="Basic Info" key="basic">
           <BasicInfoTab
             categories={categories}
@@ -363,13 +420,14 @@ const ListingForm = ({
             setFilteredStates={setFilteredStates}
             filteredCities={filteredCities}
             setFilteredCities={setFilteredCities}
+            form={form} // Pass the form instance here
           />
         </TabPane>
 
         <TabPane tab="Images" key="images">
           <ImagesTab
-            images={images}
-            setImages={setImages}
+            images={formImages}
+            setImages={setFormImages}
             activeImagePreview={activeImagePreview}
             setActiveImagePreview={setActiveImagePreview}
             previewUrl={previewUrl}

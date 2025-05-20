@@ -1,29 +1,47 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
+export const API_URL = import.meta.env.VITE_API_URL || "https://api.pathsuchi.com/api";
 
-const getAuthHeader = () => {
+// Get auth header with token
+export const getAuthHeader = () => {
   const token = localStorage.getItem("token");
-  return { Authorization: `Bearer ${token}` };
+  return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
+// Helper to handle API errors
+const handleApiError = (error) => {
+  console.error("API Error:", error);
+
+  const message =
+    error.response?.data?.message ||
+    error.message ||
+    "An unknown error occurred";
+
+  throw new Error(message);
+};
+
+// Listings API calls
 export const fetchListingsAPI = async (pageNum = 1, categoryId = null) => {
-  let url = `${API_URL}/listings?page=${pageNum}&limit=10`;
-  
-  if (categoryId) {
-    url = `${API_URL}/listings/category/${categoryId}?page=${pageNum}&limit=10`;
+  try {
+    let url = `${API_URL}/listings?page=${pageNum}&limit=10`;
+
+    if (categoryId) {
+      url = `${API_URL}/listings/category/${categoryId}?page=${pageNum}&limit=10`;
+    }
+
+    const response = await axios.get(url, {
+      headers: getAuthHeader(),
+    });
+
+    return response.data;
+  } catch (error) {
+    return handleApiError(error);
   }
-  
-  const response = await axios.get(url, {
-    headers: getAuthHeader()
-  });
-  
-  return response.data;
 };
 
 export const fetchCategoriesAPI = async () => {
   const response = await axios.get(`${API_URL}/categories`, {
-    headers: getAuthHeader()
+    headers: getAuthHeader(),
   });
   return response.data;
 };
@@ -38,7 +56,7 @@ export const createListingAPI = async (formData) => {
       "Content-Type": "multipart/form-data",
     },
   });
-  
+
   return response.data;
 };
 
@@ -52,25 +70,35 @@ export const updateListingAPI = async (id, formData) => {
       "Content-Type": "multipart/form-data",
     },
   });
-  
+
   return response.data;
 };
 
 export const deleteListingAPI = async (id) => {
   const response = await axios.delete(`${API_URL}/listings/${id}`, {
-    headers: getAuthHeader()
+    headers: getAuthHeader(),
   });
-  
+
   return response.data;
 };
 
 export const deleteImageAPI = async (listingId, imageUrl) => {
-  const response = await axios({
-    method: "delete",
-    url: `${API_URL}/listings/${listingId}/images`,
-    data: { imageUrl },
-    headers: getAuthHeader(),
-  });
-  
-  return response.data;
+  try {
+    console.log(`Deleting Firebase image from listing ${listingId}`);
+    
+    // For Firebase URLs, we need to handle them specially
+    const response = await axios({
+      method: 'put', // Use PUT instead of DELETE
+      url: `${API_URL}/listings/${listingId}`,
+      data: { 
+        exactImageToRemove: imageUrl // Use a clear parameter name
+      },
+      headers: getAuthHeader()
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error("Image deletion error:", error);
+    return handleApiError(error);
+  }
 };

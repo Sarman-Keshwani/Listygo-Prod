@@ -1,8 +1,15 @@
-import React from "react";
-import { Button, Form, Input, Upload, Tooltip, message } from "antd";
-import { FiPlus, FiTrash2, FiX } from "react-icons/fi";
+import React, { useState } from "react";
+import { Button, Form, Input, Upload, Tooltip, message, Spin } from "antd";
+import {
+  FiPlus,
+  FiTrash2,
+  FiX,
+  FiAlertTriangle,
+  FiImage,
+} from "react-icons/fi";
 import { deleteImageAPI } from "../../../utils/api";
-import { validateImageFile } from "../../../utils/listingUtils";
+import axios from "axios";
+import { API_URL, getAuthHeader } from "../../../utils/api"; // Adjust the import based on your project structure
 
 const ImagesTab = ({
   images,
@@ -13,76 +20,201 @@ const ImagesTab = ({
   setPreviewUrl,
   editingListingId,
 }) => {
-  const handleFileUpload = (file) => {
-    const validation = validateImageFile(file);
+  // Track loading states per image index
+  const [deletingIndex, setDeletingIndex] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
+  const [deduplicating, setDeduplicating] = useState(false); // Track deduplication state
 
+  // Basic file validation
+  const validateFile = (file) => {
+    // Check file type
+    const acceptedTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+    ];
+    if (!acceptedTypes.includes(file.type)) {
+      return {
+        valid: false,
+        message: "Only JPG, PNG and WebP images are allowed",
+      };
+    }
+
+    // File size check (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      return {
+        valid: false,
+        message: "Image must be smaller than 5MB",
+      };
+    }
+
+    return { valid: true };
+  };
+
+  const handleFileUpload = (file) => {
+    setUploadError(null);
+
+    // Validate the file
+    const validation = validateFile(file);
     if (!validation.valid) {
+      setUploadError(validation.message);
       message.error(validation.message);
       return false;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setPreviewUrl(e.target.result);
-      setImages((prev) => [...prev.filter(Boolean), e.target.result]);
-      setActiveImagePreview(images.length);
-    };
-    reader.readAsDataURL(file);
-    return false; // prevent Upload auto upload
+    message.loading("Processing image...", 0.5);
+
+    try {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const result = e.target.result;
+
+        // Update images array, removing any empty placeholders
+        setImages((prevImages) => {
+          // Create a new array without empty strings
+          const nonEmptyImages = prevImages.filter(
+            (img) => img && typeof img === "string" && img.trim() !== ""
+          );
+
+          // Add the new image
+          return [...nonEmptyImages, result];
+        });
+
+        // Update preview to show the new image
+        setPreviewUrl(result);
+
+        // Update active preview index to the new image
+        setTimeout(() => {
+          setActiveImagePreview(
+            images.filter((img) => img && img.trim() !== "").length
+          );
+          message.success("Image added successfully");
+        }, 100);
+      };
+
+      reader.onerror = () => {
+        message.error("Failed to read file");
+        setUploadError("Failed to read file");
+      };
+
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error("Error processing image upload:", error);
+      message.error("Failed to process image");
+      setUploadError("Failed to process image");
+    }
+
+    return false; // prevent automatic uploads
   };
 
+  // Handle deletion
   const handleDeleteImage = async (imageUrl, index) => {
-    try {
-      console.log("Deleting image:", imageUrl, "at index:", index);
+    // Prevent deletion while another is in progress
+    if (deletingIndex !== null) return;
 
-      // If we're editing an existing listing and it's a stored image (not a data URL)
-      if (editingListingId && imageUrl && !imageUrl.startsWith("data:")) {
-        // Show confirmation dialog
-        if (!window.confirm("Are you sure you want to delete this image?")) {
-          return;
-        }
+    // For server images in existing listings
+    if (editingListingId && imageUrl) {
+      if (window.confirm("Delete this image?")) {
+        // Set loading state
+        setDeletingIndex(index);
 
         try {
-          // Call the API to delete the image
-          await deleteImageAPI(editingListingId, imageUrl);
-          message.success("Image deleted successfully from server!");
-        } catch (apiError) {
-          console.error("API error when deleting image:", apiError);
-          message.error("Failed to delete image from server");
-          // Continue with local deletion even if server deletion fails
+          console.log(`Deleting image at index ${index}: ${imageUrl}`);
+
+          const result = await deleteImageAPI(editingListingId, imageUrl);
+
+          if (result && result.success) {
+            message.success("Image deleted successfully");
+
+            // If server returned updated listing data, use it
+            if (result.data && Array.isArray(result.data.images)) {
+              setImages(result.data.images);
+
+              // Reset preview if needed
+              if (previewUrl === imageUrl) {
+                setPreviewUrl(null);
+              }
+
+              // Update active preview index
+              const newActiveIndex = Math.min(
+                activeImagePreview,
+                result.data.images.length - 1
+              );
+              setActiveImagePreview(Math.max(0, newActiveIndex));
+            } else {
+              // Fallback to local removal
+              removeImageFromState(index);
+            }
+          } else {
+            throw new Error(result?.message || "Failed to delete image");
+          }
+        } catch (error) {
+          console.error("Error:", error);
+          message.error("Failed to delete image. Trying local removal.");
+          removeImageFromState(index);
+        } finally {
+          setDeletingIndex(null);
         }
       }
+    } else {
+      // For new uploads or temporary images, just remove locally
+      removeImageFromState(index);
+    }
+  };
 
-      // Remove the image from the local state
-      let newImages = [...images];
+  // Update your removeImageFromState function to be cleaner
+  const removeImageFromState = (index) => {
+    console.log(`Removing image at index ${index} locally`);
+
+    setImages((prevImages) => {
+      const newImages = [...prevImages];
       newImages.splice(index, 1);
 
-      // If no images left, add an empty placeholder
+      // If no images left, add empty placeholder
       if (newImages.length === 0) {
-        newImages = [""];
+        return [""];
       }
 
-      // Remove any empty strings except one placeholder if needed
-      newImages = newImages.filter(
-        (img, i) =>
-          img.trim() !== "" ||
-          (img.trim() === "" && i === 0 && newImages.length === 1)
-      );
+      return newImages;
+    });
+  };
 
-      setImages(newImages);
+  // Deduplicate images function
+  const deduplicateImages = async () => {
+    if (!editingListingId) return;
 
-      // Clear preview URL if it's showing the deleted image
-      if (previewUrl === imageUrl) {
-        setPreviewUrl(null);
+    setDeduplicating(true);
+    try {
+      const response = await axios({
+        method: "post",
+        url: `${API_URL}/listings/${editingListingId}/deduplicate-images`,
+        headers: getAuthHeader(),
+      });
+
+      if (response.data.success) {
+        message.success(`${response.data.message}`);
+
+        // If images were changed, update the state
+        if (response.data.data.originalCount !== response.data.data.newCount) {
+          // Refresh the listing data
+          const listingResponse = await axios({
+            method: "get",
+            url: `${API_URL}/listings/${editingListingId}`,
+            headers: getAuthHeader(),
+          });
+
+          if (listingResponse.data.success) {
+            setImages(listingResponse.data.data.images);
+          }
+        }
       }
-
-      // Update the active preview if needed
-      if (activeImagePreview >= newImages.length) {
-        setActiveImagePreview(Math.max(0, newImages.length - 1));
-      }
-    } catch (err) {
-      console.error("Error in handleDeleteImage:", err);
-      message.error("Failed to delete image. Please try again.");
+    } catch (error) {
+      console.error("Error deduplicating images:", error);
+      message.error("Failed to deduplicate images");
+    } finally {
+      setDeduplicating(false);
     }
   };
 
@@ -93,25 +225,49 @@ const ImagesTab = ({
       rules={[
         {
           validator: () => {
-            if (images.filter((i) => i?.trim()).length === 0) {
+            const hasValidImages = images.some(
+              (i) => i && typeof i === "string" && i.trim() !== ""
+            );
+
+            if (!hasValidImages) {
               return Promise.reject("At least one image is required");
             }
+
             return Promise.resolve();
           },
         },
       ]}
     >
+      {uploadError && (
+        <div className="mb-3 p-2 bg-red-50 text-red-700 border border-red-200 rounded">
+          <FiAlertTriangle className="inline-block mr-2" />
+          {uploadError}
+        </div>
+      )}
+
       <Upload
-        accept=".jpg,.jpeg,.png"
+        name="image"
+        accept=".jpg,.jpeg,.png,.webp"
         showUploadList={false}
         beforeUpload={handleFileUpload}
+        maxCount={10}
       >
-        <Button icon={<FiPlus />}>Upload</Button>
+        <Button
+          icon={<FiPlus />}
+          type="primary"
+          disabled={deletingIndex !== null}
+        >
+          Upload Image
+        </Button>
       </Upload>
 
-      {/* URL inputs */}
+      <div className="text-xs text-gray-500 mt-1 mb-4">
+        JPG, PNG or WebP. Max 5MB. Recommended ratio 4:3.
+      </div>
+
+      {/* Image URL inputs */}
       {images.map((url, i) => (
-        <div key={i} className="relative mt-2">
+        <div key={`image-input-${i}`} className="relative mt-2">
           <Input
             className="pr-12"
             value={url}
@@ -121,94 +277,139 @@ const ImagesTab = ({
               next[i] = e.target.value;
               setImages(next);
             }}
+            disabled={deletingIndex === i}
           />
           <Tooltip title="Delete image">
             <Button
               type="text"
               danger
-              icon={<FiTrash2 />}
+              icon={deletingIndex === i ? <Spin size="small" /> : <FiTrash2 />}
               className="absolute right-1 top-1"
               onClick={() => handleDeleteImage(url, i)}
+              disabled={deletingIndex !== null}
             />
           </Tooltip>
         </div>
       ))}
 
-      {/* Preview */}
+      {/* Main preview area */}
       <div className="mt-4 relative">
-        <div className="h-48 flex items-center justify-center bg-gray-100">
-          {previewUrl || images[activeImagePreview]?.trim() ? (
+        <div className="h-48 flex items-center justify-center bg-gray-100 border rounded">
+          {previewUrl ||
+          (activeImagePreview !== null &&
+            images[activeImagePreview]?.trim()) ? (
             <div className="relative w-full h-full">
               <img
                 src={previewUrl || images[activeImagePreview]}
                 alt="Preview"
                 className="max-h-full mx-auto object-contain"
-                onError={(e) =>
-                  (e.currentTarget.src =
-                    "https://via.placeholder.com/400x200?text=Invalid")
-                }
+                onError={(e) => {
+                  e.target.src =
+                    "https://via.placeholder.com/400x200?text=Invalid+Image";
+                  message.error("Failed to load image preview");
+                }}
               />
-              <Button
-                type="primary"
-                danger
-                icon={<FiTrash2 />}
-                shape="circle"
-                size="small"
-                className="absolute top-2 right-2 opacity-80 hover:opacity-100"
-                onClick={() =>
-                  handleDeleteImage(
-                    images[activeImagePreview],
-                    activeImagePreview
-                  )
-                }
-              />
+              {/* Delete button on preview */}
+              {(previewUrl || images[activeImagePreview]?.trim()) && (
+                <Button
+                  type="primary"
+                  danger
+                  icon={
+                    deletingIndex === activeImagePreview ? (
+                      <Spin size="small" />
+                    ) : (
+                      <FiTrash2 />
+                    )
+                  }
+                  shape="circle"
+                  size="small"
+                  className="absolute top-2 right-2 opacity-80 hover:opacity-100"
+                  onClick={() =>
+                    handleDeleteImage(
+                      images[activeImagePreview],
+                      activeImagePreview
+                    )
+                  }
+                  disabled={deletingIndex !== null}
+                />
+              )}
             </div>
           ) : (
-            <span className="text-gray-500">No preview</span>
+            <div className="text-gray-400 flex flex-col items-center">
+              <FiImage size={32} />
+              <span className="mt-2">No image preview</span>
+            </div>
           )}
         </div>
 
-        {/* Image thumbnails if there are multiple */}
-        {images.length > 1 && (
+        {/* Thumbnails */}
+        {images.filter(
+          (img) => img && typeof img === "string" && img.trim() !== ""
+        ).length > 1 && (
           <div className="flex mt-2 gap-2 overflow-x-auto py-2">
-            {images.map((img, idx) => (
-              <div
-                key={idx}
-                className={`relative cursor-pointer border-2 rounded overflow-hidden ${
-                  idx === activeImagePreview
-                    ? "border-blue-500"
-                    : "border-gray-200"
-                }`}
-                onClick={() => setActiveImagePreview(idx)}
-              >
-                <div className="h-16 w-16">
-                  <img
-                    src={img}
-                    alt={`Thumbnail ${idx + 1}`}
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src =
-                        "https://via.placeholder.com/80?text=Invalid";
-                    }}
-                  />
-                </div>
-                <Button
-                  type="text"
-                  danger
-                  icon={<FiX />}
-                  size="small"
-                  className="absolute top-0 right-0 bg-white/70 hover:bg-white"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    handleDeleteImage(img, idx);
-                  }}
-                />
-              </div>
-            ))}
+            {images
+              .filter(
+                (img) => img && typeof img === "string" && img.trim() !== ""
+              )
+              .map((img, idx) => {
+                const actualIndex = images.indexOf(img);
+                return (
+                  <div
+                    key={`thumb-${idx}`}
+                    className={`relative cursor-pointer border-2 rounded overflow-hidden ${
+                      activeImagePreview === actualIndex
+                        ? "border-blue-500"
+                        : "border-gray-200"
+                    }`}
+                    onClick={() => setActiveImagePreview(actualIndex)}
+                  >
+                    <div className="h-16 w-16 flex items-center justify-center bg-gray-50">
+                      <img
+                        src={img}
+                        alt={`Thumbnail ${idx + 1}`}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.target.src =
+                            "https://via.placeholder.com/80?text=Invalid";
+                        }}
+                      />
+                      {deletingIndex === actualIndex && (
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <Spin size="small" />
+                        </div>
+                      )}
+                    </div>
+                    {/* Delete button on thumbnail */}
+                    <Button
+                      type="text"
+                      danger
+                      icon={<FiX />}
+                      size="small"
+                      className="absolute top-0 right-0 bg-white/70 hover:bg-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteImage(img, actualIndex);
+                      }}
+                      disabled={deletingIndex !== null}
+                    />
+                  </div>
+                );
+              })}
           </div>
         )}
       </div>
+
+      {/* Deduplicate button - only for existing listings */}
+      {editingListingId && (
+        <Button
+          onClick={deduplicateImages}
+          loading={deduplicating}
+          className="ml-2"
+          size="small"
+        >
+          Fix Duplicates
+        </Button>
+      )}
     </Form.Item>
   );
 };
